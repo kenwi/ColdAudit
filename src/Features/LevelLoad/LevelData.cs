@@ -1,0 +1,51 @@
+using System.Numerics;
+using ColdAudit.Shared.Math;
+
+namespace ColdAudit.Features.LevelLoad;
+
+public sealed class LevelData
+{
+    public string LevelId { get; init; } = string.Empty;
+    public Vector3 PlayerSpawn { get; init; } = new(0f, 1.7f, 0f);
+    public float PlayerSpawnYaw { get; init; }
+    public List<SectorDef> Sectors { get; } = [];
+    public List<PortalDef> Portals { get; } = [];
+    public List<InteractableDef> Interactables { get; } = [];
+}
+
+public sealed class SectorDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string? ModelPath { get; init; }
+    public Aabb Bounds { get; init; }
+}
+
+public sealed class PortalDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string FromSectorId { get; init; } = string.Empty;
+    public string ToSectorId { get; init; } = string.Empty;
+    public bool TwoWay { get; init; } = true;
+    public Vector3[] Corners { get; init; } = [];
+}
+
+public enum InteractableKind
+{
+    Door,
+    BadgeReader,
+    Workstation,
+    Console,
+    Note,
+    PatchPort,
+    Pickup,
+    ExitVolume
+}
+
+public sealed class InteractableDef
+{
+    public string Id { get; init; } = string.Empty;
+    public InteractableKind Kind { get; init; }
+    public string SectorId { get; init; } = string.Empty;
+    public Vector3 Position { get; init; }
+    public Dictionary<string, string> Params { get; init; } = new(StringComparer.Ordinal);
+}
