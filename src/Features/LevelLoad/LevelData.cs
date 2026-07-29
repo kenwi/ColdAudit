@@ -1,23 +1,52 @@
 using System.Numerics;
 using ColdAudit.Shared.Math;
+using ColdAudit.Shared.Rendering;
 
 namespace ColdAudit.Features.LevelLoad;
 
 public sealed class LevelData
 {
+    public int LevelNumber { get; init; }
     public string LevelId { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string MissionMessage { get; init; } = string.Empty;
+    public string StartSectorId { get; init; } = string.Empty;
     public Vector3 PlayerSpawn { get; init; } = new(0f, 1.7f, 0f);
     public float PlayerSpawnYaw { get; init; }
+    public string LevelDirectory { get; init; } = string.Empty;
     public List<SectorDef> Sectors { get; } = [];
     public List<PortalDef> Portals { get; } = [];
     public List<InteractableDef> Interactables { get; } = [];
+
+    public SectorDef? FindSector(string id) =>
+        Sectors.Find(s => string.Equals(s.Id, id, StringComparison.Ordinal));
+
+    public void UnloadAssets()
+    {
+        foreach (var sector in Sectors)
+        {
+            sector.UnloadModel();
+        }
+    }
 }
 
 public sealed class SectorDef
 {
     public string Id { get; init; } = string.Empty;
     public string? ModelPath { get; init; }
+    public string? SourceFile { get; init; }
     public Aabb Bounds { get; init; }
+    public ModelHandle? Model { get; private set; }
+
+    public bool HasModel => Model is { IsLoaded: true };
+
+    public void AttachModel(ModelHandle model) => Model = model;
+
+    public void UnloadModel()
+    {
+        Model?.Dispose();
+        Model = null;
+    }
 }
 
 public sealed class PortalDef
@@ -27,6 +56,7 @@ public sealed class PortalDef
     public string ToSectorId { get; init; } = string.Empty;
     public bool TwoWay { get; init; } = true;
     public Vector3[] Corners { get; init; } = [];
+    public string? SourceFile { get; init; }
 }
 
 public enum InteractableKind

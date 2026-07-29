@@ -2,6 +2,7 @@ namespace ColdAudit.Shared.World;
 
 public sealed class LevelSession
 {
-    public string LevelId { get; set; } = "wing_b";
+    public int LevelNumber { get; set; } = 1;
+    public string LevelId { get; set; } = "1";
     public bool IsLoaded { get; set; }
 }

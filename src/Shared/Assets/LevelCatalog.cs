@@ -2,11 +2,9 @@ namespace ColdAudit.Shared.Assets;
 
 public static class LevelCatalog
 {
-    public static string WingB => "wing_b";
+    public static string LevelDirectory(int levelNumber) =>
+        Path.Combine(ContentPaths.Levels, levelNumber.ToString());
 
-    public static string GlbPath(string levelId) =>
-        Path.Combine(ContentPaths.Levels, levelId, $"{levelId}.glb");
-
-    public static string JsonPath(string levelId) =>
-        Path.Combine(ContentPaths.Levels, levelId, $"{levelId}.json");
+    public static string ManifestPath(int levelNumber) =>
+        Path.Combine(LevelDirectory(levelNumber), "level.json");
 }

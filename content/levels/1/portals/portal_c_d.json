@@ -1,0 +1,12 @@
+{
+  "id": "portal_c_d",
+  "fromSectorId": "room_c",
+  "toSectorId": "room_d",
+  "twoWay": true,
+  "corners": [
+    { "x": 12.0, "y": 0.0, "z": -0.5 },
+    { "x": 12.0, "y": 0.0, "z": 0.5 },
+    { "x": 12.0, "y": 2.0, "z": 0.5 },
+    { "x": 12.0, "y": 2.0, "z": -0.5 }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "levelId": 1,
+  "name": "Wing B",
+  "missionMessage": "COLD AUDIT // SCOPE: Wing B // Retrieve FINANCE-DR // Exfil lobby",
+  "startSectorId": "room_a",
+  "playerSpawn": {
+    "position": { "x": 0.0, "y": 1.7, "z": 0.0 },
+    "yaw": 0.0
+  },
+  "sectors": [
+    "sectors/room_a.json",
+    "sectors/room_b.json",
+    "sectors/room_c.json",
+    "sectors/room_d.json"
+  ],
+  "portals": [
+    "portals/portal_a_b.json",
+    "portals/portal_a_c.json",
+    "portals/portal_c_d.json"
+  ],
+  "interactables": []
+}
