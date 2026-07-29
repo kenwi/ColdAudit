@@ -33,7 +33,7 @@ public sealed class PlayerControllerFeature : FeatureBase
             return;
         }
 
-        world.PlayerYaw += input.LookDelta.X * _config.MouseSensitivity;
+        world.PlayerYaw -= input.LookDelta.X * _config.MouseSensitivity;
         world.PlayerPitch -= input.LookDelta.Y * _config.MouseSensitivity;
         world.PlayerPitch = System.Math.Clamp(world.PlayerPitch, -_config.PitchLimit, _config.PitchLimit);
         world.IsCrouching = input.CrouchHeld;
