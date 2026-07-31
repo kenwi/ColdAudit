@@ -6,14 +6,18 @@ namespace ColdAudit.Features.LevelLoad;
 
 public sealed class LevelLoadFeature : FeatureBase
 {
+    private GameWorld? _world;
+
     public LevelData? Level { get; private set; }
     public LevelSession Session { get; } = new();
 
     public override void Load(GameWorld world, EventBus events)
     {
+        _world = world;
         Session.LevelId = LevelCatalog.WingB;
         Level = CreatePlaceholderLevel(Session.LevelId);
         Session.IsLoaded = true;
+        world.ActiveLevel = Level;
 
         world.PlayerPosition = Level.PlayerSpawn;
         world.PlayerYaw = Level.PlayerSpawnYaw;
@@ -25,23 +29,29 @@ public sealed class LevelLoadFeature : FeatureBase
 
     public override void Unload()
     {
+        if (_world is not null && ReferenceEquals(_world.ActiveLevel, Level))
+        {
+            _world.ActiveLevel = null;
+        }
+
         Level = null;
         Session.IsLoaded = false;
+        _world = null;
     }
 
     private static LevelData CreatePlaceholderLevel(string levelId)
     {
-        // Stand-in until Blender wing_b.glb + sidecar exist.
+        // Stand-in until Blender sector meshes + sidecar exist.
         return new LevelData
         {
             LevelId = levelId,
             PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f),
             Sectors =
             {
-                new SectorDef { Id = "room_a" },
-                new SectorDef { Id = "room_b" },
-                new SectorDef { Id = "room_c" },
-                new SectorDef { Id = "room_d" }
+                new SectorDef { Id = "room_a", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_a") },
+                new SectorDef { Id = "room_b", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_b") },
+                new SectorDef { Id = "room_c", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_c") },
+                new SectorDef { Id = "room_d", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_d") }
             },
             Portals =
             {

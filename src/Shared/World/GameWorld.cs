@@ -1,4 +1,5 @@
 using System.Numerics;
+using ColdAudit.Features.LevelLoad;
 
 namespace ColdAudit.Shared.World;
 
@@ -29,4 +30,6 @@ public sealed class GameWorld
     public string UsePrompt { get; set; } = string.Empty;
 
     public bool DebugDrawEnabled { get; set; } = true;
+
+    public LevelData? ActiveLevel { get; set; }
 }

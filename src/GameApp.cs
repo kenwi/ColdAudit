@@ -6,6 +6,7 @@ using ColdAudit.Features.Hud;
 using ColdAudit.Features.Interaction;
 using ColdAudit.Features.Inventory;
 using ColdAudit.Features.LevelLoad;
+using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.ObjectiveExfil;
 using ColdAudit.Features.PlayerController;
 using ColdAudit.Features.SectorVisibility;
@@ -91,6 +92,7 @@ public sealed class GameApp
         _features.Add(new ObjectiveExfilFeature());
         _features.Add(new SectorVisibilityFeature());
         _features.Add(new WorldRenderFeature());
+        _features.Add(new LevelModelsFeature());
         _features.Add(new HudFeature());
         _features.Add(new DebugOverlayFeature());
     }

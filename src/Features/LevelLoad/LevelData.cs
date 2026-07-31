@@ -17,6 +17,7 @@ public sealed class SectorDef
 {
     public string Id { get; init; } = string.Empty;
     public string? ModelPath { get; init; }
+    public bool RenderEnabled { get; set; } = true;
     public Aabb Bounds { get; init; }
 }
 
