@@ -1,4 +1,5 @@
 using ColdAudit.Shared.Contracts;
+using ColdAudit.Shared.Rendering;
 using ColdAudit.Shared.World;
 using Raylib_cs;
 
@@ -8,7 +9,12 @@ public sealed class HudFeature : FeatureBase
 {
     public override void Draw(GameWorld world)
     {
-        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), 36, new Color(0, 0, 0, 160));
+        world.Ui.Begin();
+
+        var w = UiFramebuffer.Width;
+        var h = UiFramebuffer.Height;
+
+        Raylib.DrawRectangle(0, 0, w, 36, new Color(0, 0, 0, 160));
         Raylib.DrawText(world.MissionMessage, 12, 10, 16, Color.RayWhite);
 
         // Heat bar
@@ -22,8 +28,6 @@ public sealed class HudFeature : FeatureBase
 
         if (!string.IsNullOrEmpty(world.UsePrompt))
         {
-            var w = Raylib.GetScreenWidth();
-            var h = Raylib.GetScreenHeight();
             Raylib.DrawText(world.UsePrompt, w / 2 - 80, h - 64, 20, Color.RayWhite);
         }
 
@@ -37,16 +41,16 @@ public sealed class HudFeature : FeatureBase
         }
 
         // Crosshair
-        var cx = Raylib.GetScreenWidth() / 2;
-        var cy = Raylib.GetScreenHeight() / 2;
+        var cx = w / 2;
+        var cy = h / 2;
         Raylib.DrawRectangle(cx - 6, cy - 1, 12, 2, Color.RayWhite);
         Raylib.DrawRectangle(cx - 1, cy - 6, 2, 12, Color.RayWhite);
     }
 
     private static void DrawCenterBanner(string text, Color color)
     {
-        var w = Raylib.GetScreenWidth();
-        var h = Raylib.GetScreenHeight();
+        var w = UiFramebuffer.Width;
+        var h = UiFramebuffer.Height;
         Raylib.DrawRectangle(0, h / 2 - 40, w, 80, new Color(0, 0, 0, 180));
         Raylib.DrawText(text, w / 2 - 100, h / 2 - 12, 28, color);
     }

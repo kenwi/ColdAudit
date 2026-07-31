@@ -10,6 +10,7 @@ using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.ObjectiveExfil;
 using ColdAudit.Features.PlayerController;
 using ColdAudit.Features.SectorVisibility;
+using ColdAudit.Features.UiPresent;
 using ColdAudit.Features.Workstations;
 using ColdAudit.Features.WorldRender;
 using ColdAudit.Shared.Contracts;
@@ -95,5 +96,6 @@ public sealed class GameApp
         _features.Add(new LevelModelsFeature());
         _features.Add(new HudFeature());
         _features.Add(new DebugOverlayFeature());
+        _features.Add(new UiPresentFeature());
     }
 }
