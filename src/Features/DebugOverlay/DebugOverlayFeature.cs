@@ -55,6 +55,9 @@ public sealed class DebugOverlayFeature : FeatureBase
         y += 18;
         Raylib.DrawText($"visible: {string.Join(",", world.VisibleSectorIds)}", 12, y, 14, Color.Lime);
         y += 18;
+        var cull = world.SectorCullEnabled ? "ON" : "OFF";
+        Raylib.DrawText($"sector cull: {cull}  (F2)", 12, y, 14, Color.Lime);
+        y += 18;
         Raylib.DrawText($"pos: {world.PlayerPosition.X:0.0}, {world.PlayerPosition.Y:0.0}, {world.PlayerPosition.Z:0.0}", 12, y, 14, Color.Lime);
         y += 18;
         Raylib.DrawText($"items: {string.Join(",", world.CarriedItemIds)}", 12, y, 14, Color.Lime);

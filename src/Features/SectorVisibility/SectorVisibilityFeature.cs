@@ -15,19 +15,60 @@ public sealed class SectorVisibilityFeature : FeatureBase
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
-        ResolveCurrentSector(world);
-
-        // Stub: mark current sector visible. Portal flood lands next.
-        _state.Visible.Clear();
-        if (!string.IsNullOrEmpty(world.CurrentSectorId))
+        if (input.ToggleSectorCullPressed)
         {
-            _state.Visible.Add(world.CurrentSectorId);
+            world.SectorCullEnabled = !world.SectorCullEnabled;
         }
+
+        ResolveCurrentSector(world);
+        ResolveVisibleSectors(world);
 
         world.VisibleSectorIds.Clear();
         foreach (var id in _state.Visible)
         {
             world.VisibleSectorIds.Add(id);
+        }
+    }
+
+    private void ResolveVisibleSectors(GameWorld world)
+    {
+        _state.Visible.Clear();
+
+        var level = world.ActiveLevel;
+        if (level is null)
+        {
+            return;
+        }
+
+        if (!world.SectorCullEnabled)
+        {
+            foreach (var sector in level.Sectors)
+            {
+                _state.Visible.Add(sector.Id);
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrEmpty(world.CurrentSectorId))
+        {
+            return;
+        }
+
+        var current = world.CurrentSectorId;
+        _state.Visible.Add(current);
+
+        foreach (var portal in level.Portals)
+        {
+            if (portal.FromSectorId == current)
+            {
+                _state.Visible.Add(portal.ToSectorId);
+            }
+
+            if (portal.TwoWay && portal.ToSectorId == current)
+            {
+                _state.Visible.Add(portal.FromSectorId);
+            }
         }
     }
 

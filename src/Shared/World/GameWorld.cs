@@ -32,6 +32,11 @@ public sealed class GameWorld
 
     public bool DebugDrawEnabled { get; set; } = true;
 
+    /// <summary>
+    /// When true, only the current room and portal-adjacent rooms are drawn.
+    /// </summary>
+    public bool SectorCullEnabled { get; set; } = true;
+
     public LevelData? ActiveLevel { get; set; }
 
     public UiFramebuffer Ui { get; } = new();

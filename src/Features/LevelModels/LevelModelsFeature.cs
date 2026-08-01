@@ -72,7 +72,7 @@ public sealed class LevelModelsFeature : FeatureBase
         for (var i = 0; i < sectors.Count; i++)
         {
             var sector = sectors[i];
-            if (!sector.RenderEnabled)
+            if (!sector.RenderEnabled || !IsSectorDrawn(world, sector.Id))
             {
                 continue;
             }
@@ -89,7 +89,7 @@ public sealed class LevelModelsFeature : FeatureBase
             }
         }
 
-        DrawPortalPlaceholders(world.ActiveLevel);
+        DrawPortalPlaceholders(world, world.ActiveLevel);
 
         Raylib.EndMode3D();
     }
@@ -106,7 +106,7 @@ public sealed class LevelModelsFeature : FeatureBase
         _sectorIndexById.Clear();
     }
 
-    private void DrawPortalPlaceholders(LevelData level)
+    private void DrawPortalPlaceholders(GameWorld world, LevelData level)
     {
         foreach (var portal in level.Portals)
         {
@@ -119,6 +119,11 @@ public sealed class LevelModelsFeature : FeatureBase
             var fromSector = level.Sectors[fromIndex];
             var toSector = level.Sectors[toIndex];
             if (!fromSector.RenderEnabled || !toSector.RenderEnabled)
+            {
+                continue;
+            }
+
+            if (!IsSectorDrawn(world, portal.FromSectorId) || !IsSectorDrawn(world, portal.ToSectorId))
             {
                 continue;
             }
@@ -142,4 +147,7 @@ public sealed class LevelModelsFeature : FeatureBase
             Raylib.DrawPlane(center, size, PortalPlaneColor);
         }
     }
+
+    private static bool IsSectorDrawn(GameWorld world, string sectorId) =>
+        !world.SectorCullEnabled || world.VisibleSectorIds.Contains(sectorId);
 }

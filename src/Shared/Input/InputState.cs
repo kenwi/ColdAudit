@@ -10,6 +10,7 @@ public sealed class InputState
     public bool UsePressed { get; private set; }
     public bool CrouchHeld { get; private set; }
     public bool ToggleDebugPressed { get; private set; }
+    public bool ToggleSectorCullPressed { get; private set; }
 
     public void Sample()
     {
@@ -28,8 +29,9 @@ public sealed class InputState
 
         MoveAxes = move;
         LookDelta = Raylib.GetMouseDelta();
-        UsePressed = Raylib.IsKeyPressed(KeyboardKey.E) || Raylib.IsKeyPressed(KeyboardKey.F);
-        CrouchHeld = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.C);
-        ToggleDebugPressed = Raylib.IsKeyPressed(KeyboardKey.F1);
+        UsePressed = Raylib.IsKeyPressed(InputMap.Use) || Raylib.IsKeyPressed(KeyboardKey.F);
+        CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch) || Raylib.IsKeyDown(KeyboardKey.C);
+        ToggleDebugPressed = Raylib.IsKeyPressed(InputMap.DebugToggle);
+        ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
     }
 }
