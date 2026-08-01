@@ -1,4 +1,5 @@
 using System.Numerics;
+using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Math;
 using ColdAudit.Shared.Rendering;
@@ -9,7 +10,18 @@ namespace ColdAudit.Features.LevelModels;
 
 public sealed class LevelModelsFeature : FeatureBase
 {
+    private const float SectorSpacing = 14f;
+    private const float SectorPlaneExtent = 12f;
+    private const float PortalGap = SectorSpacing - SectorPlaneExtent;
+    private const float PortalWidth = 4f;
+
+    private static readonly Vector2 PlaceholderPlaneSize = new(SectorPlaneExtent, SectorPlaneExtent);
+    private static readonly Color PlaceholderPlaneColor = new(40, 48, 58, 255);
+    private static readonly Color PortalPlaneColor = new(70, 110, 95, 255);
+
     private readonly Dictionary<string, ModelHandle> _handles = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _missingSectorIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _sectorIndexById = new(StringComparer.Ordinal);
     private Camera3D _camera;
 
     public override void Load(GameWorld world, EventBus events)
@@ -29,10 +41,14 @@ public sealed class LevelModelsFeature : FeatureBase
             return;
         }
 
-        foreach (var sector in level.Sectors)
+        for (var i = 0; i < level.Sectors.Count; i++)
         {
+            var sector = level.Sectors[i];
+            _sectorIndexById[sector.Id] = i;
+
             if (string.IsNullOrWhiteSpace(sector.ModelPath) || !File.Exists(sector.ModelPath))
             {
+                _missingSectorIds.Add(sector.Id);
                 continue;
             }
 
@@ -44,7 +60,7 @@ public sealed class LevelModelsFeature : FeatureBase
 
     public override void Draw(GameWorld world)
     {
-        if (_handles.Count == 0 || world.ActiveLevel is null)
+        if (world.ActiveLevel is null)
         {
             return;
         }
@@ -55,20 +71,28 @@ public sealed class LevelModelsFeature : FeatureBase
 
         Raylib.BeginMode3D(_camera);
 
-        foreach (var sector in world.ActiveLevel.Sectors)
+        var sectors = world.ActiveLevel.Sectors;
+        for (var i = 0; i < sectors.Count; i++)
         {
+            var sector = sectors[i];
             if (!sector.RenderEnabled)
             {
                 continue;
             }
 
-            if (!_handles.TryGetValue(sector.Id, out var handle) || !handle.IsLoaded)
+            if (_handles.TryGetValue(sector.Id, out var handle) && handle.IsLoaded)
             {
+                Raylib.DrawModel(handle.Model, Vector3.Zero, 1f, Color.White);
                 continue;
             }
 
-            Raylib.DrawModel(handle.Model, Vector3.Zero, 1f, Color.White);
+            if (_missingSectorIds.Contains(sector.Id))
+            {
+                Raylib.DrawPlane(SectorOrigin(i), PlaceholderPlaneSize, PlaceholderPlaneColor);
+            }
         }
+
+        DrawPortalPlaceholders(world.ActiveLevel);
 
         Raylib.EndMode3D();
     }
@@ -81,5 +105,47 @@ public sealed class LevelModelsFeature : FeatureBase
         }
 
         _handles.Clear();
+        _missingSectorIds.Clear();
+        _sectorIndexById.Clear();
     }
+
+    private void DrawPortalPlaceholders(LevelData level)
+    {
+        foreach (var portal in level.Portals)
+        {
+            if (!_sectorIndexById.TryGetValue(portal.FromSectorId, out var fromIndex) ||
+                !_sectorIndexById.TryGetValue(portal.ToSectorId, out var toIndex))
+            {
+                continue;
+            }
+
+            var fromSector = level.Sectors[fromIndex];
+            var toSector = level.Sectors[toIndex];
+            if (!fromSector.RenderEnabled || !toSector.RenderEnabled)
+            {
+                continue;
+            }
+
+            var from = SectorOrigin(fromIndex);
+            var to = SectorOrigin(toIndex);
+            var center = (from + to) * 0.5f;
+            var delta = to - from;
+
+            // Thin along the connection axis to fill the gap; wider across as a doorway strip.
+            Vector2 size;
+            if (System.MathF.Abs(delta.X) >= System.MathF.Abs(delta.Z))
+            {
+                size = new Vector2(PortalGap, PortalWidth);
+            }
+            else
+            {
+                size = new Vector2(PortalWidth, PortalGap);
+            }
+
+            Raylib.DrawPlane(center, size, PortalPlaneColor);
+        }
+    }
+
+    private static Vector3 SectorOrigin(int index) =>
+        new((index % 2) * SectorSpacing, 0f, (index / 2) * SectorSpacing);
 }
