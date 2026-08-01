@@ -50,7 +50,8 @@ public sealed class DebugOverlayFeature : FeatureBase
         }
 
         var y = 80;
-        Raylib.DrawText($"sector: {world.CurrentSectorId}", 12, y, 14, Color.Lime);
+        var room = string.IsNullOrEmpty(world.CurrentSectorId) ? "(none)" : world.CurrentSectorId;
+        Raylib.DrawText($"room: {room}", 12, y, 14, Color.Lime);
         y += 18;
         Raylib.DrawText($"visible: {string.Join(",", world.VisibleSectorIds)}", 12, y, 14, Color.Lime);
         y += 18;

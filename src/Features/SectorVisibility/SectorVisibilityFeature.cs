@@ -15,6 +15,8 @@ public sealed class SectorVisibilityFeature : FeatureBase
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
+        ResolveCurrentSector(world);
+
         // Stub: mark current sector visible. Portal flood lands next.
         _state.Visible.Clear();
         if (!string.IsNullOrEmpty(world.CurrentSectorId))
@@ -27,5 +29,25 @@ public sealed class SectorVisibilityFeature : FeatureBase
         {
             world.VisibleSectorIds.Add(id);
         }
+    }
+
+    private static void ResolveCurrentSector(GameWorld world)
+    {
+        var level = world.ActiveLevel;
+        if (level is null)
+        {
+            return;
+        }
+
+        foreach (var sector in level.Sectors)
+        {
+            if (sector.Bounds.ContainsXz(world.PlayerPosition))
+            {
+                world.CurrentSectorId = sector.Id;
+                return;
+            }
+        }
+
+        // Keep last sector while crossing portal gaps / outside bounds.
     }
 }

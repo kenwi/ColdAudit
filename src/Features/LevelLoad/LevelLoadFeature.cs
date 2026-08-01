@@ -42,23 +42,29 @@ public sealed class LevelLoadFeature : FeatureBase
     private static LevelData CreatePlaceholderLevel(string levelId)
     {
         // Stand-in until Blender sector meshes + sidecar exist.
-        return new LevelData
+        var sectorIds = new[] { "room_a", "room_b", "room_c", "room_d", "room_e", "room_f" };
+        var level = new LevelData
         {
             LevelId = levelId,
-            PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f),
-            Sectors =
-            {
-                new SectorDef { Id = "room_a", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_a") },
-                new SectorDef { Id = "room_b", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_b") },
-                new SectorDef { Id = "room_c", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_c") },
-                new SectorDef { Id = "room_d", ModelPath = LevelCatalog.SectorGlbPath(levelId, "room_d") }
-            },
-            Portals =
-            {
-                new PortalDef { Id = "portal_a_b", FromSectorId = "room_a", ToSectorId = "room_b" },
-                new PortalDef { Id = "portal_a_c", FromSectorId = "room_a", ToSectorId = "room_c" },
-                new PortalDef { Id = "portal_c_d", FromSectorId = "room_c", ToSectorId = "room_d" }
-            }
+            PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f)
         };
+
+        for (var i = 0; i < sectorIds.Length; i++)
+        {
+            var id = sectorIds[i];
+            level.Sectors.Add(new SectorDef
+            {
+                Id = id,
+                ModelPath = LevelCatalog.SectorGlbPath(levelId, id),
+                Bounds = DebugSectorLayout.Bounds(i)
+            });
+        }
+
+        level.Portals.Add(new PortalDef { Id = "portal_a_b", FromSectorId = "room_a", ToSectorId = "room_b" });
+        level.Portals.Add(new PortalDef { Id = "portal_a_c", FromSectorId = "room_a", ToSectorId = "room_c" });
+        level.Portals.Add(new PortalDef { Id = "portal_c_d", FromSectorId = "room_c", ToSectorId = "room_d" });
+        level.Portals.Add(new PortalDef { Id = "portal_d_f", FromSectorId = "room_d", ToSectorId = "room_f" });
+        level.Portals.Add(new PortalDef { Id = "portal_c_e", FromSectorId = "room_c", ToSectorId = "room_e" });
+        return level;
     }
 }

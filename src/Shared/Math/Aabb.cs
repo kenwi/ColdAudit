@@ -11,4 +11,8 @@ public readonly record struct Aabb(Vector3 Min, Vector3 Max)
         point.X >= Min.X && point.X <= Max.X &&
         point.Y >= Min.Y && point.Y <= Max.Y &&
         point.Z >= Min.Z && point.Z <= Max.Z;
+
+    public bool ContainsXz(Vector3 point) =>
+        point.X >= Min.X && point.X <= Max.X &&
+        point.Z >= Min.Z && point.Z <= Max.Z;
 }

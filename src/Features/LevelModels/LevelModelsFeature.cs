@@ -10,12 +10,9 @@ namespace ColdAudit.Features.LevelModels;
 
 public sealed class LevelModelsFeature : FeatureBase
 {
-    private const float SectorSpacing = 14f;
-    private const float SectorPlaneExtent = 12f;
-    private const float PortalGap = SectorSpacing - SectorPlaneExtent;
-    private const float PortalWidth = 4f;
+    private static readonly Vector2 PlaceholderPlaneSize =
+        new(DebugSectorLayout.Extent, DebugSectorLayout.Extent);
 
-    private static readonly Vector2 PlaceholderPlaneSize = new(SectorPlaneExtent, SectorPlaneExtent);
     private static readonly Color PlaceholderPlaneColor = new(40, 48, 58, 255);
     private static readonly Color PortalPlaneColor = new(70, 110, 95, 255);
 
@@ -88,7 +85,7 @@ public sealed class LevelModelsFeature : FeatureBase
 
             if (_missingSectorIds.Contains(sector.Id))
             {
-                Raylib.DrawPlane(SectorOrigin(i), PlaceholderPlaneSize, PlaceholderPlaneColor);
+                Raylib.DrawPlane(DebugSectorLayout.Origin(i), PlaceholderPlaneSize, PlaceholderPlaneColor);
             }
         }
 
@@ -126,8 +123,8 @@ public sealed class LevelModelsFeature : FeatureBase
                 continue;
             }
 
-            var from = SectorOrigin(fromIndex);
-            var to = SectorOrigin(toIndex);
+            var from = DebugSectorLayout.Origin(fromIndex);
+            var to = DebugSectorLayout.Origin(toIndex);
             var center = (from + to) * 0.5f;
             var delta = to - from;
 
@@ -135,17 +132,14 @@ public sealed class LevelModelsFeature : FeatureBase
             Vector2 size;
             if (System.MathF.Abs(delta.X) >= System.MathF.Abs(delta.Z))
             {
-                size = new Vector2(PortalGap, PortalWidth);
+                size = new Vector2(DebugSectorLayout.PortalGap, DebugSectorLayout.PortalWidth);
             }
             else
             {
-                size = new Vector2(PortalWidth, PortalGap);
+                size = new Vector2(DebugSectorLayout.PortalWidth, DebugSectorLayout.PortalGap);
             }
 
             Raylib.DrawPlane(center, size, PortalPlaneColor);
         }
     }
-
-    private static Vector3 SectorOrigin(int index) =>
-        new((index % 2) * SectorSpacing, 0f, (index / 2) * SectorSpacing);
 }
