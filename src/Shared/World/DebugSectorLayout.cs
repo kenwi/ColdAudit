@@ -24,4 +24,29 @@ public static class DebugSectorLayout
             new Vector3(origin.X - half, -1f, origin.Z - half),
             new Vector3(origin.X + half, 4f, origin.Z + half));
     }
+
+    public static Aabb PortalBounds(int fromIndex, int toIndex)
+    {
+        var from = Origin(fromIndex);
+        var to = Origin(toIndex);
+        var center = (from + to) * 0.5f;
+        var delta = to - from;
+
+        float halfX;
+        float halfZ;
+        if (System.MathF.Abs(delta.X) >= System.MathF.Abs(delta.Z))
+        {
+            halfX = PortalGap * 0.5f;
+            halfZ = PortalWidth * 0.5f;
+        }
+        else
+        {
+            halfX = PortalWidth * 0.5f;
+            halfZ = PortalGap * 0.5f;
+        }
+
+        return new Aabb(
+            new Vector3(center.X - halfX, -1f, center.Z - halfZ),
+            new Vector3(center.X + halfX, 4f, center.Z + halfZ));
+    }
 }

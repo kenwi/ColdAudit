@@ -118,12 +118,9 @@ public sealed class LevelModelsFeature : FeatureBase
 
             var fromSector = level.Sectors[fromIndex];
             var toSector = level.Sectors[toIndex];
-            if (!fromSector.RenderEnabled || !toSector.RenderEnabled)
-            {
-                continue;
-            }
-
-            if (!IsSectorDrawn(world, portal.FromSectorId) || !IsSectorDrawn(world, portal.ToSectorId))
+            var fromDrawn = fromSector.RenderEnabled && IsSectorDrawn(world, portal.FromSectorId);
+            var toDrawn = toSector.RenderEnabled && IsSectorDrawn(world, portal.ToSectorId);
+            if (!fromDrawn && !toDrawn)
             {
                 continue;
             }
