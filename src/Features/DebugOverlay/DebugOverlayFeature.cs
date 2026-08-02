@@ -68,6 +68,9 @@ public sealed class DebugOverlayFeature : FeatureBase
             ? $"ON lights={lightingState.Lights.Count}"
             : "OFF";
         Raylib.DrawText($"lighting: {lighting}", 12, y, 14, Color.Lime);
+        y += 18;
+        var fullscreen = Raylib.IsWindowFullscreen() ? "ON" : "OFF";
+        Raylib.DrawText($"fullscreen: {fullscreen}  (F11)", 12, y, 14, Color.Lime);
         y += 24;
 
         if (world.ActiveLevel is null)

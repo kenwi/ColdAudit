@@ -8,4 +8,5 @@ public static class InputMap
     public const KeyboardKey Crouch = KeyboardKey.LeftControl;
     public const KeyboardKey DebugToggle = KeyboardKey.F1;
     public const KeyboardKey SectorCullToggle = KeyboardKey.F2;
+    public const KeyboardKey FullscreenToggle = KeyboardKey.F11;
 }

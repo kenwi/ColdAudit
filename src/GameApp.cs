@@ -2,6 +2,7 @@ using ColdAudit.Features.Cameras;
 using ColdAudit.Features.DebugOverlay;
 using ColdAudit.Features.DetectionHeat;
 using ColdAudit.Features.DoorsAccess;
+using ColdAudit.Features.Fullscreen;
 using ColdAudit.Features.Hud;
 using ColdAudit.Features.Interaction;
 using ColdAudit.Features.Inventory;
@@ -85,6 +86,7 @@ public sealed class GameApp
     {
         // Order matters: input consumers first, visibility after movement, render/hud last.
         _features.Add(new LevelLoadFeature());
+        _features.Add(new FullscreenFeature());
         _features.Add(new PlayerControllerFeature());
         _features.Add(new InteractionFeature());
         _features.Add(new InventoryFeature());
