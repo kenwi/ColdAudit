@@ -52,6 +52,7 @@ public sealed class LevelPropsFeature : FeatureBase
 
             var handle = new ModelHandle();
             handle.Load(placement.ModelPath);
+            world.Lighting?.ApplyToModel(handle);
             _handlesByPath[placement.ModelPath] = handle;
         }
     }

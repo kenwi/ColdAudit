@@ -63,6 +63,11 @@ public sealed class DebugOverlayFeature : FeatureBase
         Raylib.DrawText($"items: {string.Join(",", world.CarriedItemIds)}", 12, y, 14, Color.Lime);
         y += 18;
         Raylib.DrawText($"fps: {Raylib.GetFPS()}  (F1 debug)", 12, y, 14, Color.Lime);
+        y += 18;
+        var lighting = world.Lighting is { IsLoaded: true } lightingState
+            ? $"ON lights={lightingState.Lights.Count}"
+            : "OFF";
+        Raylib.DrawText($"lighting: {lighting}", 12, y, 14, Color.Lime);
         y += 24;
 
         if (world.ActiveLevel is null)

@@ -8,6 +8,7 @@ using ColdAudit.Features.Inventory;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.LevelProps;
+using ColdAudit.Features.Lighting;
 using ColdAudit.Features.ObjectiveExfil;
 using ColdAudit.Features.PlayerController;
 using ColdAudit.Features.SectorVisibility;
@@ -93,6 +94,7 @@ public sealed class GameApp
         _features.Add(new DetectionHeatFeature());
         _features.Add(new ObjectiveExfilFeature());
         _features.Add(new SectorVisibilityFeature());
+        _features.Add(new LightingFeature());
         _features.Add(new WorldRenderFeature());
         _features.Add(new LevelModelsFeature());
         _features.Add(new LevelPropsFeature());

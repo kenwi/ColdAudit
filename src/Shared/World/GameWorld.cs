@@ -39,5 +39,10 @@ public sealed class GameWorld
 
     public LevelData? ActiveLevel { get; set; }
 
+    /// <summary>
+    /// Shared basic lighting shader/lights used by 3D model drawers.
+    /// </summary>
+    public BasicLighting? Lighting { get; set; }
+
     public UiFramebuffer Ui { get; } = new();
 }
