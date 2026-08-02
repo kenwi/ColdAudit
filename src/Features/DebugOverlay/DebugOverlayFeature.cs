@@ -85,5 +85,22 @@ public sealed class DebugOverlayFeature : FeatureBase
             Raylib.DrawText($"{indexLabel} {sector.Id} [{enabled}] {asset}", 12, y, 14, Color.Lime);
             y += 18;
         }
+
+        y += 6;
+        var placements = world.ActiveLevel.ModelPlacements;
+        Raylib.DrawText($"model props: {placements.Count}", 12, y, 14, Color.Lime);
+        y += 18;
+        foreach (var placement in placements)
+        {
+            var fileName = Path.GetFileName(placement.ModelPath);
+            var asset = File.Exists(placement.ModelPath) ? "file" : "missing";
+            Raylib.DrawText(
+                $"{placement.Id} {fileName} @{placement.Position.X:0.0},{placement.Position.Y:0.0},{placement.Position.Z:0.0} [{asset}]",
+                12,
+                y,
+                14,
+                Color.Lime);
+            y += 18;
+        }
     }
 }

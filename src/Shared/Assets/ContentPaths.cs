@@ -31,6 +31,7 @@ public static class ContentPaths
     }
 
     public static string Levels => Path.Combine(Root, "levels");
+    public static string Models => Path.Combine(Root, "models");
     public static string Audio => Path.Combine(Root, "audio");
     public static string Textures => Path.Combine(Root, "textures");
 }

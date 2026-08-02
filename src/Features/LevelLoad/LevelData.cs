@@ -11,6 +11,20 @@ public sealed class LevelData
     public List<SectorDef> Sectors { get; } = [];
     public List<PortalDef> Portals { get; } = [];
     public List<InteractableDef> Interactables { get; } = [];
+    public List<ModelPlacementDef> ModelPlacements { get; } = [];
+}
+
+/// <summary>
+/// A drawable glTF/glb asset placed in the level at a world transform.
+/// </summary>
+public sealed class ModelPlacementDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string ModelPath { get; init; } = string.Empty;
+    public string SectorId { get; init; } = string.Empty;
+    public Vector3 Position { get; init; }
+    public float YawDegrees { get; init; }
+    public float Scale { get; init; } = 1f;
 }
 
 public sealed class SectorDef
