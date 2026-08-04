@@ -110,5 +110,7 @@ public sealed class DebugOverlayFeature : FeatureBase
                 Color.Lime);
             y += 18;
         }
+
+        Raylib.DrawFPS(Shared.Rendering.UiFramebuffer.Width - 24, 12);
     }
 }
