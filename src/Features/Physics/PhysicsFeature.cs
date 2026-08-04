@@ -4,6 +4,7 @@ using Box3D.Interop;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
+using ColdAudit.Shared.Math;
 using ColdAudit.Shared.World;
 
 namespace ColdAudit.Features.Physics;
@@ -16,26 +17,37 @@ public sealed class PhysicsFeature : FeatureBase
     private Box3DWorld? _world;
     private B3QueryFilter _filter;
     private readonly Box3DDebugSnapshot _debugSnapshot = new();
+    private readonly List<DebugWallQuad> _debugWalls = [];
     private bool _debugSnapshotValid;
     private int _staticBodyCount;
+    private Aabb _floorBounds;
+    private bool _hasFloorBounds;
 
     public Box3DWorld? World => _world;
     public int StaticBodyCount => _staticBodyCount;
+    public IReadOnlyList<DebugWallQuad> DebugWalls => _debugWalls;
 
     public override void Load(GameWorld world, EventBus events)
     {
         _world = new Box3DWorld(gravity: new B3Vec3(0f, -9.8f, 0f), debugShapes: true);
         _filter = Box3DWorld.DefaultQueryFilter();
+        _debugWalls.Clear();
+        _hasFloorBounds = false;
 
         if (world.ActiveLevel is not null)
         {
-            _staticBodyCount = LevelCollisionBuilder.Build(_world, world.ActiveLevel);
+            _staticBodyCount = LevelCollisionBuilder.Build(
+                _world,
+                world.ActiveLevel,
+                _debugWalls,
+                out _floorBounds);
+            _hasFloorBounds = true;
         }
 
         var version = Box3DWorld.NativeVersion;
         var floorOk = VerifyFloorRaycast(_world);
         Console.WriteLine(
-            $"[Physics] Box3D {version} bodies={_staticBodyCount} floor={(floorOk ? "OK" : "FAIL")}");
+            $"[Physics] Box3D {version} bodies={_staticBodyCount} walls={_debugWalls.Count} floor={(floorOk ? "OK" : "FAIL")}");
     }
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
@@ -48,7 +60,7 @@ public sealed class PhysicsFeature : FeatureBase
 
         // Capture while exclusive (before/after mover queries on this thread is fine).
         // Done here so DebugOverlay can draw after world meshes.
-        if (world.DebugDrawEnabled)
+        if (world.DebugDraw == DebugDrawMode.Wireframe)
         {
             _world.Draw(_debugSnapshot, Box3DDebugDrawOptions.Default);
             _debugSnapshotValid = true;
@@ -66,12 +78,20 @@ public sealed class PhysicsFeature : FeatureBase
         _staticBodyCount = 0;
         _debugSnapshotValid = false;
         _debugSnapshot.Clear();
+        _debugWalls.Clear();
+        _hasFloorBounds = false;
     }
 
     public bool TryGetDebugSnapshot(out Box3DDebugSnapshot snapshot)
     {
         snapshot = _debugSnapshot;
         return _debugSnapshotValid;
+    }
+
+    public bool TryGetFloorBounds(out Aabb floorBounds)
+    {
+        floorBounds = _floorBounds;
+        return _hasFloorBounds;
     }
 
     /// <summary>
@@ -136,7 +156,8 @@ public sealed class PhysicsFeature : FeatureBase
     {
         using var world = new Box3DWorld(gravity: new B3Vec3(0f, -9.8f, 0f), debugShapes: true);
         var level = CreateSmokeLevel();
-        var bodies = LevelCollisionBuilder.Build(world, level);
+        var walls = new List<DebugWallQuad>();
+        var bodies = LevelCollisionBuilder.Build(world, level, walls, out _);
         var filter = Box3DWorld.DefaultQueryFilter();
 
         var floor = world.CastRayClosest(new B3Pos(0, 5, 0), new B3Vec3(0, -10, 0), filter);
@@ -163,6 +184,22 @@ public sealed class PhysicsFeature : FeatureBase
             return false;
         }
 
+        // Crossing the old room/portal floor seam must not hitch (full travel on continuous floor).
+        var acrossSeam = world.CastMover(new B3Pos(5, 0.02, 0), in capsule, new B3Vec3(4, 0, 0), filter);
+        if (acrossSeam < 0.95f)
+        {
+            message = $"floor seam hitch: mover fraction={acrossSeam} (want ~1 across x=6)";
+            return false;
+        }
+
+        // Portal side walls: from corridor center, +Z should stop near z=2 (portal half-width).
+        var sideBlocked = world.CastMover(new B3Pos(7, 0.02, 0), in capsule, new B3Vec3(0, 0, 10), filter);
+        if (sideBlocked is < 0.12f or > 0.22f)
+        {
+            message = $"portal side wall fraction={sideBlocked} (want ~0.165 for wall at z=2, r=0.35)";
+            return false;
+        }
+
         var snapshot = new Box3DDebugSnapshot();
         world.Draw(snapshot, Box3DDebugDrawOptions.Default);
         if (snapshot.Segments.Count == 0)
@@ -171,7 +208,8 @@ public sealed class PhysicsFeature : FeatureBase
             return false;
         }
 
-        message = $"OK bodies={bodies} wallFrac={fraction:F3} doorFrac={throughDoor:F3} segments={snapshot.Segments.Count}";
+        message =
+            $"OK bodies={bodies} wallFrac={fraction:F3} doorFrac={throughDoor:F3} seamFrac={acrossSeam:F3} sideFrac={sideBlocked:F3} segments={snapshot.Segments.Count}";
         return true;
     }
 

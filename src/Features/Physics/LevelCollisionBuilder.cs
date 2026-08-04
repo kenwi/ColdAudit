@@ -8,8 +8,8 @@ using ColdAudit.Shared.World;
 namespace ColdAudit.Features.Physics;
 
 /// <summary>
-/// Builds static Box3D colliders from placeholder sector AABBs: floors, perimeter walls
-/// with portal cutouts, and portal floors bridging room gaps.
+/// Builds static Box3D colliders from placeholder sector AABBs: one continuous floor
+/// (avoids portal seam hitches) plus perimeter walls with portal cutouts.
 /// </summary>
 internal static class LevelCollisionBuilder
 {
@@ -26,8 +26,13 @@ internal static class LevelCollisionBuilder
         PosZ
     }
 
-    public static int Build(Box3DWorld world, LevelData level)
+    public static int Build(
+        Box3DWorld world,
+        LevelData level,
+        List<DebugWallQuad> walls,
+        out Aabb floorBounds)
     {
+        floorBounds = default;
         var indexById = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < level.Sectors.Count; i++)
         {
@@ -37,9 +42,11 @@ internal static class LevelCollisionBuilder
         var openings = new Dictionary<(string SectorId, Face Face), List<(float Min, float Max)>>();
         var bodyCount = 0;
 
-        foreach (var sector in level.Sectors)
+        // Single floor over the union of sector + portal bounds so the capsule never
+        // crosses coplanar box edges at doorway thresholds.
+        if (TryComputeFloorBounds(level, indexById, out floorBounds))
         {
-            AddFloor(world, sector.Bounds);
+            AddFloor(world, floorBounds);
             bodyCount++;
         }
 
@@ -52,19 +59,60 @@ internal static class LevelCollisionBuilder
             }
 
             var portalBounds = DebugSectorLayout.PortalBounds(fromIndex, toIndex);
-            AddFloor(world, portalBounds);
-            bodyCount++;
-
             RegisterOpening(openings, portal.FromSectorId, level.Sectors[fromIndex].Bounds, portalBounds);
             RegisterOpening(openings, portal.ToSectorId, level.Sectors[toIndex].Bounds, portalBounds);
+            bodyCount += AddPortalSideWalls(world, portalBounds, walls);
         }
 
         foreach (var sector in level.Sectors)
         {
-            bodyCount += AddWalls(world, sector.Id, sector.Bounds, openings);
+            bodyCount += AddWalls(world, sector.Id, sector.Bounds, openings, walls);
         }
 
         return bodyCount;
+    }
+
+    private static bool TryComputeFloorBounds(
+        LevelData level,
+        Dictionary<string, int> indexById,
+        out Aabb floorBounds)
+    {
+        floorBounds = default;
+        if (level.Sectors.Count == 0)
+        {
+            return false;
+        }
+
+        var min = level.Sectors[0].Bounds.Min;
+        var max = level.Sectors[0].Bounds.Max;
+
+        for (var i = 1; i < level.Sectors.Count; i++)
+        {
+            Expand(ref min, ref max, level.Sectors[i].Bounds);
+        }
+
+        foreach (var portal in level.Portals)
+        {
+            if (!indexById.TryGetValue(portal.FromSectorId, out var fromIndex) ||
+                !indexById.TryGetValue(portal.ToSectorId, out var toIndex))
+            {
+                continue;
+            }
+
+            Expand(ref min, ref max, DebugSectorLayout.PortalBounds(fromIndex, toIndex));
+        }
+
+        // Keep the walkable surface at FloorY; sector Min.Y is only a volume bound.
+        floorBounds = new Aabb(
+            new Vector3(min.X, FloorY - FloorHalfThickness * 2f, min.Z),
+            new Vector3(max.X, FloorY, max.Z));
+        return true;
+    }
+
+    private static void Expand(ref Vector3 min, ref Vector3 max, Aabb bounds)
+    {
+        min = Vector3.Min(min, bounds.Min);
+        max = Vector3.Max(max, bounds.Max);
     }
 
     private static void AddFloor(Box3DWorld world, Aabb bounds)
@@ -95,6 +143,29 @@ internal static class LevelCollisionBuilder
         list.Add((min, max));
     }
 
+    /// <summary>
+    /// Corridor side walls along the portal's long edges (the short-length sides of the
+    /// footprint) so you cannot strafe out of bounds while inside the gap.
+    /// </summary>
+    private static int AddPortalSideWalls(Box3DWorld world, Aabb portalBounds, List<DebugWallQuad> walls)
+    {
+        var size = portalBounds.Size;
+        if (size.X <= size.Z)
+        {
+            // Corridor runs along X (short depth); walls on ±Z spanning the short sides.
+            AddWallSegment(world, portalBounds, Face.NegZ, portalBounds.Min.X, portalBounds.Max.X, walls);
+            AddWallSegment(world, portalBounds, Face.PosZ, portalBounds.Min.X, portalBounds.Max.X, walls);
+        }
+        else
+        {
+            // Corridor runs along Z; walls on ±X spanning the short sides.
+            AddWallSegment(world, portalBounds, Face.NegX, portalBounds.Min.Z, portalBounds.Max.Z, walls);
+            AddWallSegment(world, portalBounds, Face.PosX, portalBounds.Min.Z, portalBounds.Max.Z, walls);
+        }
+
+        return 2;
+    }
+
     private static Face FaceToward(Vector3 from, Vector3 toward)
     {
         var delta = toward - from;
@@ -107,13 +178,14 @@ internal static class LevelCollisionBuilder
         Box3DWorld world,
         string sectorId,
         Aabb bounds,
-        Dictionary<(string, Face), List<(float, float)>> openings)
+        Dictionary<(string, Face), List<(float, float)>> openings,
+        List<DebugWallQuad> walls)
     {
         var count = 0;
-        count += AddWallFace(world, bounds, Face.NegX, GetOpenings(openings, sectorId, Face.NegX));
-        count += AddWallFace(world, bounds, Face.PosX, GetOpenings(openings, sectorId, Face.PosX));
-        count += AddWallFace(world, bounds, Face.NegZ, GetOpenings(openings, sectorId, Face.NegZ));
-        count += AddWallFace(world, bounds, Face.PosZ, GetOpenings(openings, sectorId, Face.PosZ));
+        count += AddWallFace(world, bounds, Face.NegX, GetOpenings(openings, sectorId, Face.NegX), walls);
+        count += AddWallFace(world, bounds, Face.PosX, GetOpenings(openings, sectorId, Face.PosX), walls);
+        count += AddWallFace(world, bounds, Face.NegZ, GetOpenings(openings, sectorId, Face.NegZ), walls);
+        count += AddWallFace(world, bounds, Face.PosZ, GetOpenings(openings, sectorId, Face.PosZ), walls);
         return count;
     }
 
@@ -127,7 +199,8 @@ internal static class LevelCollisionBuilder
         Box3DWorld world,
         Aabb bounds,
         Face face,
-        List<(float Min, float Max)> holes)
+        List<(float Min, float Max)> holes,
+        List<DebugWallQuad> walls)
     {
         float axisMin;
         float axisMax;
@@ -152,7 +225,7 @@ internal static class LevelCollisionBuilder
                 continue;
             }
 
-            AddWallSegment(world, bounds, face, segMin, segMax);
+            AddWallSegment(world, bounds, face, segMin, segMax, walls);
             count++;
         }
 
@@ -197,41 +270,83 @@ internal static class LevelCollisionBuilder
         return result;
     }
 
-    private static void AddWallSegment(Box3DWorld world, Aabb bounds, Face face, float segMin, float segMax)
+    private static void AddWallSegment(
+        Box3DWorld world,
+        Aabb bounds,
+        Face face,
+        float segMin,
+        float segMax,
+        List<DebugWallQuad> walls)
     {
         var halfH = WallHeight * 0.5f;
         var halfT = WallThickness * 0.5f;
         var mid = (segMin + segMax) * 0.5f;
         var halfLen = (segMax - segMin) * 0.5f;
         var y = FloorY + halfH;
+        var y0 = FloorY;
+        var y1 = FloorY + WallHeight;
 
         B3Pos center;
         float halfX;
         float halfZ;
+        DebugWallQuad quad;
         switch (face)
         {
             case Face.NegX:
-                center = new B3Pos(bounds.Min.X - halfT, y, mid);
+            {
+                var x = bounds.Min.X - halfT;
+                center = new B3Pos(x, y, mid);
                 halfX = halfT;
                 halfZ = halfLen;
+                quad = new DebugWallQuad(
+                    new Vector3(x, y0, segMin),
+                    new Vector3(x, y0, segMax),
+                    new Vector3(x, y1, segMax),
+                    new Vector3(x, y1, segMin));
                 break;
+            }
             case Face.PosX:
-                center = new B3Pos(bounds.Max.X + halfT, y, mid);
+            {
+                var x = bounds.Max.X + halfT;
+                center = new B3Pos(x, y, mid);
                 halfX = halfT;
                 halfZ = halfLen;
+                quad = new DebugWallQuad(
+                    new Vector3(x, y0, segMin),
+                    new Vector3(x, y0, segMax),
+                    new Vector3(x, y1, segMax),
+                    new Vector3(x, y1, segMin));
                 break;
+            }
             case Face.NegZ:
-                center = new B3Pos(mid, y, bounds.Min.Z - halfT);
+            {
+                var z = bounds.Min.Z - halfT;
+                center = new B3Pos(mid, y, z);
                 halfX = halfLen;
                 halfZ = halfT;
+                quad = new DebugWallQuad(
+                    new Vector3(segMin, y0, z),
+                    new Vector3(segMax, y0, z),
+                    new Vector3(segMax, y1, z),
+                    new Vector3(segMin, y1, z));
                 break;
+            }
             default:
-                center = new B3Pos(mid, y, bounds.Max.Z + halfT);
+            {
+                var z = bounds.Max.Z + halfT;
+                center = new B3Pos(mid, y, z);
                 halfX = halfLen;
                 halfZ = halfT;
+                quad = new DebugWallQuad(
+                    new Vector3(segMin, y0, z),
+                    new Vector3(segMax, y0, z),
+                    new Vector3(segMax, y1, z),
+                    new Vector3(segMin, y1, z));
                 break;
+            }
         }
 
+        walls.Add(quad);
         world.CreateStaticBody(center).AddBox(halfX, halfH, halfZ);
     }
 }

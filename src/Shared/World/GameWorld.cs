@@ -11,6 +11,13 @@ public enum MissionPhase
     Lost
 }
 
+public enum DebugDrawMode
+{
+    Off = 0,
+    Wireframe = 1,
+    SolidWalls = 2
+}
+
 public sealed class GameWorld
 {
     public Vector3 PlayerPosition { get; set; } = new(0f, 1.7f, 0f);
@@ -30,7 +37,8 @@ public sealed class GameWorld
     public string? FocusedInteractableId { get; set; }
     public string UsePrompt { get; set; } = string.Empty;
 
-    public bool DebugDrawEnabled { get; set; } = true;
+    /// <summary>F1 cycles Off → Wireframe → SolidWalls.</summary>
+    public DebugDrawMode DebugDraw { get; set; } = DebugDrawMode.Wireframe;
 
     /// <summary>
     /// When true, only the current room and portal-adjacent rooms are drawn.
