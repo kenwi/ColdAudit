@@ -14,8 +14,8 @@ namespace ColdAudit.Features.Physics;
 internal static class LevelCollisionBuilder
 {
     public const float FloorY = 0f;
-    public const float FloorHalfThickness = 0.5f;
-    public const float WallThickness = 0.3f;
+    public const float FloorHalfThickness = 0.0f;
+    public const float WallThickness = 0.0f;
     public const float WallHeight = 3f;
 
     private enum Face

@@ -9,7 +9,7 @@ namespace ColdAudit.Features.PlayerController;
 
 public sealed class PlayerConfig
 {
-    public float MoveSpeed { get; set; } = 4.5f;
+    public float MoveSpeed { get; set; } = 6.5f;
     public float CrouchSpeedMultiplier { get; set; } = 0.5f;
     public float MouseSensitivity { get; set; } = 0.003f;
     public float EyeHeight { get; set; } = 1.7f;
