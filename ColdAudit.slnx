@@ -2,4 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/ColdAudit.csproj" />
   </Folder>
+  <Folder Name="/extern/">
+    <Project Path="extern/box3d/Box3D.Interop.csproj" />
+    <Project Path="extern/box3d/Box3D.csproj" />
+  </Folder>
 </Solution>

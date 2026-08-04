@@ -1,5 +1,8 @@
+using System.Numerics;
+using ColdAudit.Features.Physics;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
+using ColdAudit.Shared.Math;
 using ColdAudit.Shared.World;
 using Raylib_cs;
 
@@ -19,6 +22,26 @@ public sealed class DebugOverlayFeature : FeatureBase
         KeyboardKey.Eight,
         KeyboardKey.Nine
     ];
+
+    private readonly PhysicsFeature _physics;
+    private Camera3D _camera;
+
+    public DebugOverlayFeature(PhysicsFeature physics)
+    {
+        _physics = physics;
+    }
+
+    public override void Load(GameWorld world, EventBus events)
+    {
+        _camera = new Camera3D
+        {
+            Position = world.PlayerPosition,
+            Target = world.PlayerPosition + Vector3.UnitZ,
+            Up = Vector3.UnitY,
+            FovY = 70f,
+            Projection = CameraProjection.Perspective
+        };
+    }
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
@@ -49,6 +72,8 @@ public sealed class DebugOverlayFeature : FeatureBase
             return;
         }
 
+        DrawPhysicsWireframes(world);
+
         var y = 80;
         var room = string.IsNullOrEmpty(world.CurrentSectorId) ? "(none)" : world.CurrentSectorId;
         Raylib.DrawText($"room: {room}", 12, y, 14, Color.Lime);
@@ -59,6 +84,8 @@ public sealed class DebugOverlayFeature : FeatureBase
         Raylib.DrawText($"sector cull: {cull}  (F2)", 12, y, 14, Color.Lime);
         y += 18;
         Raylib.DrawText($"pos: {world.PlayerPosition.X:0.0}, {world.PlayerPosition.Y:0.0}, {world.PlayerPosition.Z:0.0}", 12, y, 14, Color.Lime);
+        y += 18;
+        Raylib.DrawText($"physics: bodies={_physics.StaticBodyCount}", 12, y, 14, Color.Lime);
         y += 18;
         Raylib.DrawText($"items: {string.Join(",", world.CarriedItemIds)}", 12, y, 14, Color.Lime);
         y += 18;
@@ -110,5 +137,36 @@ public sealed class DebugOverlayFeature : FeatureBase
                 Color.Lime);
             y += 18;
         }
+    }
+
+    private void DrawPhysicsWireframes(GameWorld world)
+    {
+        if (!_physics.TryGetDebugSnapshot(out var snapshot) || snapshot.Segments.Count == 0)
+        {
+            return;
+        }
+
+        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
+        _camera.Position = world.PlayerPosition;
+        _camera.Target = world.PlayerPosition + forward;
+
+        Raylib.BeginMode3D(_camera);
+        foreach (var segment in snapshot.Segments)
+        {
+            var a = new Vector3((float)segment.A.X, (float)segment.A.Y, (float)segment.A.Z);
+            var b = new Vector3((float)segment.B.X, (float)segment.B.Y, (float)segment.B.Z);
+            Raylib.DrawLine3D(a, b, ToRayColor(segment.Rgb, segment.Alpha));
+        }
+
+        Raylib.EndMode3D();
+    }
+
+    private static Color ToRayColor(uint rgb, float alpha)
+    {
+        var r = (byte)((rgb >> 16) & 0xFF);
+        var g = (byte)((rgb >> 8) & 0xFF);
+        var b = (byte)(rgb & 0xFF);
+        var a = (byte)System.Math.Clamp((int)(alpha * 255f), 0, 255);
+        return new Color(r, g, b, a);
     }
 }
