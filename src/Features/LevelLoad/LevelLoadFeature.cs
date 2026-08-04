@@ -67,12 +67,15 @@ public sealed class LevelLoadFeature : FeatureBase
         level.Portals.Add(new PortalDef { Id = "portal_c_e", FromSectorId = "room_c", ToSectorId = "room_e" });
 
         // Test placement: monkey.glb a few units ahead of spawn in room_a.
+        // CollisionMeshPath uses the same GLB for now; swap to a low-poly collider later.
+        var monkeyPath = ModelCatalog.GlbPath("monkey.glb");
         level.ModelPlacements.Add(new ModelPlacementDef
         {
             Id = "prop_monkey",
-            ModelPath = ModelCatalog.GlbPath("monkey.glb"),
+            ModelPath = monkeyPath,
+            CollisionMeshPath = monkeyPath,
             SectorId = "room_a",
-            Position = new System.Numerics.Vector3(0f, 0f, 4f),
+            Position = new System.Numerics.Vector3(0f, 1f, 4f),
             YawDegrees = 180f,
             Scale = 1f
         });

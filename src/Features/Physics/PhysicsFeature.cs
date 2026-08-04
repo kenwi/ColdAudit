@@ -18,6 +18,7 @@ public sealed class PhysicsFeature : FeatureBase
     private B3QueryFilter _filter;
     private readonly Box3DDebugSnapshot _debugSnapshot = new();
     private readonly List<DebugWallQuad> _debugWalls = [];
+    private readonly List<Box3DMesh> _collisionMeshes = [];
     private bool _debugSnapshotValid;
     private int _staticBodyCount;
     private Aabb _floorBounds;
@@ -32,6 +33,7 @@ public sealed class PhysicsFeature : FeatureBase
         _world = new Box3DWorld(gravity: new B3Vec3(0f, -9.8f, 0f), debugShapes: true);
         _filter = Box3DWorld.DefaultQueryFilter();
         _debugWalls.Clear();
+        DisposeCollisionMeshes();
         _hasFloorBounds = false;
 
         if (world.ActiveLevel is not null)
@@ -41,13 +43,14 @@ public sealed class PhysicsFeature : FeatureBase
                 world.ActiveLevel,
                 _debugWalls,
                 out _floorBounds);
+            _staticBodyCount += ModelCollisionBuilder.Build(_world, world.ActiveLevel, _collisionMeshes);
             _hasFloorBounds = true;
         }
 
         var version = Box3DWorld.NativeVersion;
         var floorOk = VerifyFloorRaycast(_world);
         Console.WriteLine(
-            $"[Physics] Box3D {version} bodies={_staticBodyCount} walls={_debugWalls.Count} floor={(floorOk ? "OK" : "FAIL")}");
+            $"[Physics] Box3D {version} bodies={_staticBodyCount} walls={_debugWalls.Count} meshColliders={_collisionMeshes.Count} floor={(floorOk ? "OK" : "FAIL")}");
     }
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
@@ -73,13 +76,25 @@ public sealed class PhysicsFeature : FeatureBase
 
     public override void Unload()
     {
+        // Destroy bodies/shapes before releasing shared mesh data they reference.
         _world?.Dispose();
         _world = null;
+        DisposeCollisionMeshes();
         _staticBodyCount = 0;
         _debugSnapshotValid = false;
         _debugSnapshot.Clear();
         _debugWalls.Clear();
         _hasFloorBounds = false;
+    }
+
+    private void DisposeCollisionMeshes()
+    {
+        foreach (var mesh in _collisionMeshes)
+        {
+            mesh.Dispose();
+        }
+
+        _collisionMeshes.Clear();
     }
 
     public bool TryGetDebugSnapshot(out Box3DDebugSnapshot snapshot)

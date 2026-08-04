@@ -16,6 +16,8 @@ public sealed class LevelData
 
 /// <summary>
 /// A drawable glTF/glb asset placed in the level at a world transform.
+/// Optional <see cref="CollisionMeshPath"/> cooks a static Box3D triangle mesh
+/// (same file as the visual, or a dedicated low-poly collider GLB).
 /// </summary>
 public sealed class ModelPlacementDef
 {
@@ -25,6 +27,14 @@ public sealed class ModelPlacementDef
     public Vector3 Position { get; init; }
     public float YawDegrees { get; init; }
     public float Scale { get; init; } = 1f;
+
+    /// <summary>
+    /// GLB used as a static triangle-mesh collider. Null/empty skips mesh collision.
+    /// May equal <see cref="ModelPath"/> or point at a simplified collider asset.
+    /// </summary>
+    public string? CollisionMeshPath { get; init; }
+
+    public bool HasCollisionMesh => !string.IsNullOrWhiteSpace(CollisionMeshPath);
 }
 
 public sealed class SectorDef
