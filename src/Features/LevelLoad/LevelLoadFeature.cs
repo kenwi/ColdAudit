@@ -72,12 +72,51 @@ public sealed class LevelLoadFeature : FeatureBase
         level.ModelPlacements.Add(new ModelPlacementDef
         {
             Id = "prop_monkey",
+            ModelPath = ModelCatalog.GlbPath("monkey2.glb"),
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0f, 0f, 2f),
+            YawDegrees = -0f,
+            Scale = 1f
+        });
+
+        level.ModelPlacements.Add(new ModelPlacementDef
+        {
+            Id = "prop_monkey_b",
             ModelPath = monkeyPath,
             CollisionMeshPath = monkeyPath,
             SectorId = "room_a",
-            Position = new System.Numerics.Vector3(0f, 1f, 4f),
-            YawDegrees = 180f,
+            Position = new System.Numerics.Vector3(0f, 1f, -4f),
+            YawDegrees = 0f,
             Scale = 1f
+        });
+
+        // Desk setup along +X in room_a (table, chair facing it, computer on top).
+        level.ModelPlacements.Add(new ModelPlacementDef
+        {
+            Id = "prop_table",
+            ModelPath = ModelCatalog.GlbPath("table.glb"),
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(3.5f, 0f, 2.5f),
+            YawDegrees = 0f,
+            Scale = 1.5f
+        });
+        level.ModelPlacements.Add(new ModelPlacementDef
+        {
+            Id = "prop_chair",
+            ModelPath = ModelCatalog.GlbPath("chair.glb"),
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(3.5f, 0f, 1.4f),
+            YawDegrees = 180f,
+            Scale = 1.5f
+        });
+        level.ModelPlacements.Add(new ModelPlacementDef
+        {
+            Id = "prop_computer",
+            ModelPath = ModelCatalog.GlbPath("computer.glb"),
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(3.5f, 1.125f, 2.5f),
+            YawDegrees = 180f,
+            Scale = 1.5f
         });
 
         return level;
