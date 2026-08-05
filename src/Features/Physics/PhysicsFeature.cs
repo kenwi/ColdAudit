@@ -110,8 +110,18 @@ public sealed class PhysicsFeature : FeatureBase
     }
 
     /// <summary>
-    /// Quake-style capsule move: cast with slide, depenetrate, clip velocity.
-    /// <paramref name="feetPosition"/> is the capsule origin (feet on floor).
+    /// Min plane normal Y to treat as walkable ground (~45°). Steeper faces are walls.
+    /// </summary>
+    public const float WalkableNormalMinY = 0.7f;
+
+    /// <summary>
+    /// Max upward correction during the horizontal move (blocks climbing props / launches).
+    /// </summary>
+    public const float MaxStepUp = 0.08f;
+
+    /// <summary>
+    /// Quake-style capsule move with separated axes so steep mesh faces cannot lift or
+    /// bury the player (common with triangle-mesh props).
     /// </summary>
     public bool TryMoveCapsule(
         Vector3 feetPosition,
@@ -129,30 +139,135 @@ public sealed class PhysicsFeature : FeatureBase
         }
 
         var origin = ToPos(feetPosition);
-        var translation = new B3Vec3(velocity.X * dt, velocity.Y * dt, velocity.Z * dt);
-        var fraction = _world.CastMover(origin, in capsule, translation, _filter);
-        origin = new B3Pos(
-            origin.X + translation.X * fraction,
-            origin.Y + translation.Y * fraction,
-            origin.Z + translation.Z * fraction);
+        var vx = velocity.X;
+        var vy = velocity.Y;
+        var vz = velocity.Z;
 
-        Span<B3PlaneResult> contacts = stackalloc B3PlaneResult[8];
+        // --- Horizontal: slide on walls; only tiny step-up allowed (no prop climbing). ---
+        var horiz = new B3Vec3(vx * dt, 0f, vz * dt);
+        if (horiz.X != 0f || horiz.Z != 0f)
+        {
+            var fraction = _world.CastMover(origin, in capsule, horiz, _filter);
+            origin = new B3Pos(
+                origin.X + horiz.X * fraction,
+                origin.Y + horiz.Y * fraction,
+                origin.Z + horiz.Z * fraction);
+        }
+
+        Span<B3PlaneResult> contacts = stackalloc B3PlaneResult[16];
+        Span<B3CollisionPlane> planes = stackalloc B3CollisionPlane[16];
+
         var contactCount = _world.CollideMover(origin, in capsule, _filter, contacts);
-        Span<B3CollisionPlane> planes = stackalloc B3CollisionPlane[8];
-        var planeCount = Box3DMover.ToCollisionPlanes(contacts[..contactCount], planes);
-        var solved = Box3DMover.SolvePlanes(default, planes[..planeCount]);
-        origin = new B3Pos(
-            origin.X + solved.Delta.X,
-            origin.Y + solved.Delta.Y,
-            origin.Z + solved.Delta.Z);
+        var planeCount = BuildMoverPlanes(contacts[..contactCount], planes, flattenSteep: true);
+        if (planeCount > 0)
+        {
+            var solved = Box3DMover.SolvePlanes(default, planes[..planeCount]);
+            var stepY = System.Math.Clamp(solved.Delta.Y, 0f, MaxStepUp);
+            origin = new B3Pos(
+                origin.X + solved.Delta.X,
+                origin.Y + stepY,
+                origin.Z + solved.Delta.Z);
 
-        var clipped = Box3DMover.ClipVector(
-            new B3Vec3(velocity.X, velocity.Y, velocity.Z),
-            planes[..planeCount]);
+            var clipped = Box3DMover.ClipVector(new B3Vec3(vx, 0f, vz), planes[..planeCount]);
+            vx = clipped.X;
+            vz = clipped.Z;
+        }
+
+        // --- Vertical: gravity / floor / ceiling only. ---
+        var vert = new B3Vec3(0f, vy * dt, 0f);
+        if (vert.Y != 0f)
+        {
+            var fraction = _world.CastMover(origin, in capsule, vert, _filter);
+            origin = new B3Pos(
+                origin.X + vert.X * fraction,
+                origin.Y + vert.Y * fraction,
+                origin.Z + vert.Z * fraction);
+        }
+
+        contactCount = _world.CollideMover(origin, in capsule, _filter, contacts);
+        planeCount = BuildMoverPlanes(contacts[..contactCount], planes, flattenSteep: false);
+        if (planeCount > 0)
+        {
+            var solved = Box3DMover.SolvePlanes(default, planes[..planeCount]);
+            // Never launch from vertical resolve; allow settling into floor.
+            var dy = System.Math.Min(solved.Delta.Y, MaxStepUp);
+            origin = new B3Pos(
+                origin.X + solved.Delta.X,
+                origin.Y + dy,
+                origin.Z + solved.Delta.Z);
+
+            var clipped = Box3DMover.ClipVector(new B3Vec3(vx, vy, vz), planes[..planeCount]);
+            vx = clipped.X;
+            vy = clipped.Y;
+            vz = clipped.Z;
+
+            // Steep contacts must not create upward velocity (mesh "ramps").
+            if (vy > 0f && !HasWalkableContact(contacts[..contactCount]))
+            {
+                vy = 0f;
+            }
+        }
 
         newFeet = ToVector3(origin);
-        newVelocity = new Vector3(clipped.X, clipped.Y, clipped.Z);
+        newVelocity = new Vector3(vx, vy, vz);
         return true;
+    }
+
+    /// <summary>
+    /// Convert contacts to solver planes. When <paramref name="flattenSteep"/> is true,
+    /// non-walkable planes become horizontal walls so SolvePlanes cannot push along Y.
+    /// </summary>
+    private static int BuildMoverPlanes(
+        ReadOnlySpan<B3PlaneResult> contacts,
+        Span<B3CollisionPlane> planes,
+        bool flattenSteep)
+    {
+        var count = 0;
+        for (var i = 0; i < contacts.Length && count < planes.Length; i++)
+        {
+            var plane = contacts[i].Plane;
+            var n = plane.Normal;
+            if (flattenSteep && n.Y < WalkableNormalMinY && n.Y > -WalkableNormalMinY)
+            {
+                var xz = System.MathF.Sqrt(n.X * n.X + n.Z * n.Z);
+                if (xz < 1e-4f)
+                {
+                    continue;
+                }
+
+                var flat = new B3Vec3(n.X / xz, 0f, n.Z / xz);
+                var p = contacts[i].Point;
+                // b3Plane: distance = dot(normal, x) - offset (point on plane => offset = dot(n, p)).
+                plane = new B3Plane
+                {
+                    Normal = flat,
+                    Offset = flat.X * p.X + flat.Y * p.Y + flat.Z * p.Z
+                };
+            }
+
+            planes[count++] = new B3CollisionPlane
+            {
+                Plane = plane,
+                PushLimit = float.MaxValue,
+                Push = 0f,
+                ClipVelocity = 1
+            };
+        }
+
+        return count;
+    }
+
+    private static bool HasWalkableContact(ReadOnlySpan<B3PlaneResult> contacts)
+    {
+        for (var i = 0; i < contacts.Length; i++)
+        {
+            if (contacts[i].Plane.Normal.Y >= WalkableNormalMinY)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static B3Capsule MakeCapsule(float height, float radius = 0.35f)

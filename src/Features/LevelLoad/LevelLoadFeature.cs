@@ -72,20 +72,22 @@ public sealed class LevelLoadFeature : FeatureBase
         level.ModelPlacements.Add(new ModelPlacementDef
         {
             Id = "prop_monkey",
-            ModelPath = ModelCatalog.GlbPath("monkey2.glb"),
+            ModelPath = monkeyPath,
+            CollisionMeshPath = monkeyPath,
             SectorId = "room_a",
-            Position = new System.Numerics.Vector3(0f, 0f, 2f),
+            Position = new System.Numerics.Vector3(0f, 1f, 2f),
             YawDegrees = -0f,
             Scale = 1f
         });
 
+        var monkeyPath2 = ModelCatalog.GlbPath("monkey2.glb");
         level.ModelPlacements.Add(new ModelPlacementDef
         {
             Id = "prop_monkey_b",
-            ModelPath = monkeyPath,
-            CollisionMeshPath = monkeyPath,
+            ModelPath = monkeyPath2,
+            CollisionMeshPath = monkeyPath2,
             SectorId = "room_a",
-            Position = new System.Numerics.Vector3(0f, 1f, -4f),
+            Position = new System.Numerics.Vector3(0f, 0f, -4f),
             YawDegrees = 0f,
             Scale = 1f
         });
