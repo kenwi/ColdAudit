@@ -11,6 +11,7 @@ using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.LevelProps;
 using ColdAudit.Features.Lighting;
 using ColdAudit.Features.ObjectiveExfil;
+using ColdAudit.Features.Physics;
 using ColdAudit.Features.PlayerController;
 using ColdAudit.Features.SectorVisibility;
 using ColdAudit.Features.UiPresent;
@@ -85,9 +86,12 @@ public sealed class GameApp
     private void BuildFeatures()
     {
         // Order matters: input consumers first, visibility after movement, render/hud last.
+        // Physics after LevelLoad (builds colliders); before PlayerController (capsule mover).
+        var physics = new PhysicsFeature();
         _features.Add(new LevelLoadFeature());
+        _features.Add(physics);
         _features.Add(new FullscreenFeature());
-        _features.Add(new PlayerControllerFeature());
+        _features.Add(new PlayerControllerFeature(physics));
         _features.Add(new InteractionFeature());
         _features.Add(new InventoryFeature());
         _features.Add(new DoorsAccessFeature());
@@ -101,7 +105,7 @@ public sealed class GameApp
         _features.Add(new LevelModelsFeature());
         _features.Add(new LevelPropsFeature());
         _features.Add(new HudFeature());
-        _features.Add(new DebugOverlayFeature());
+        _features.Add(new DebugOverlayFeature(physics));
         _features.Add(new UiPresentFeature());
     }
 }

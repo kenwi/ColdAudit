@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Box3D</RootNamespace>
+    <AssemblyName>Box3D</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Core\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Box3D.Interop.csproj" />
+  </ItemGroup>
+
+  <!--
+    ProjectReference Content does not register runtimes/*/native in deps.json the way NuGet
+    packages do, so also copy next to the app for DllImport("box3d") probing.
+  -->
+  <ItemGroup>
+    <Content Include="native\linux-x64\libbox3d.so"
+             Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+             Link="libbox3d.so"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Visible="false" />
+    <Content Include="native\win-x64\box3d.dll"
+             Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+             Link="box3d.dll"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Visible="false" />
+    <Content Include="native\linux-x64\libbox3d.so"
+             Link="runtimes\linux-x64\native\libbox3d.so"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Visible="false" />
+    <Content Include="native\win-x64\box3d.dll"
+             Link="runtimes\win-x64\native\box3d.dll"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Visible="false" />
+  </ItemGroup>
+
+</Project>

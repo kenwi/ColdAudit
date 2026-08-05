@@ -54,7 +54,7 @@ public sealed class LightingFeature : FeatureBase
 
     public override void Draw(GameWorld world)
     {
-        if (!world.DebugDrawEnabled ||
+        if (world.DebugDraw == DebugDrawMode.Off ||
             world.Lighting is not { IsLoaded: true } lighting ||
             lighting.Lights.Count == 0)
         {
