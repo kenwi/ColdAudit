@@ -38,7 +38,7 @@ public sealed class GameWorld
     public string UsePrompt { get; set; } = string.Empty;
 
     /// <summary>F1 cycles Off → Wireframe → SolidWalls.</summary>
-    public DebugDrawMode DebugDraw { get; set; } = DebugDrawMode.Wireframe;
+    public DebugDrawMode DebugDraw { get; set; } = DebugDrawMode.SolidWalls;
 
     /// <summary>
     /// When true, only the current room and portal-adjacent rooms are drawn.
