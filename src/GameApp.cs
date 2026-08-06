@@ -87,6 +87,7 @@ public sealed class GameApp
     {
         // Order matters: input consumers first, visibility after movement, render/hud last.
         // Physics after LevelLoad (builds colliders); before PlayerController (capsule mover).
+        // Physics debug draw sits with the level pass (after sectors, before prop meshes).
         var physics = new PhysicsFeature();
         _features.Add(new LevelLoadFeature());
         _features.Add(physics);
@@ -103,6 +104,7 @@ public sealed class GameApp
         _features.Add(new LightingFeature());
         _features.Add(new WorldRenderFeature());
         _features.Add(new LevelModelsFeature());
+        _features.Add(new PhysicsDebugDrawFeature(physics));
         _features.Add(new LevelPropsFeature());
         _features.Add(new HudFeature());
         _features.Add(new DebugOverlayFeature(physics));

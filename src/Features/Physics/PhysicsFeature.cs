@@ -53,7 +53,7 @@ public sealed class PhysicsFeature : FeatureBase
             $"[Physics] Box3D {version} bodies={_staticBodyCount} walls={_debugWalls.Count} meshColliders={_collisionMeshes.Count} floor={(floorOk ? "OK" : "FAIL")}");
     }
 
-    public override void Draw(GameWorld world)
+    public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
         if (_world is null)
         {
@@ -61,8 +61,8 @@ public sealed class PhysicsFeature : FeatureBase
             return;
         }
 
-        // Capture while exclusive (before/after mover queries on this thread is fine).
-        // Done here so DebugOverlay can draw after world meshes.
+        // Capture after mover queries on this thread; drawn later by PhysicsDebugDrawFeature
+        // (after level geometry, before prop meshes).
         if (world.DebugDraw == DebugDrawMode.Wireframe)
         {
             _world.Draw(_debugSnapshot, Box3DDebugDrawOptions.Default);
