@@ -14,17 +14,26 @@ public sealed class SectorVisibilityState
     public HashSet<string> Visible { get; } = new(StringComparer.Ordinal);
 }
 
+/// <summary>
+/// Portal-clipped sector visibility: recurse only through openings that remain
+/// visible after clipping each hop against the current frustum.
+/// </summary>
 public sealed class SectorVisibilityFeature : FeatureBase
 {
     private const float CameraFovYDegrees = 70f;
     private const float CameraNear = 0.05f;
     private const float CameraFar = 250f;
+    private const int MaxClipVerts = 32;
 
     private readonly SectorVisibilityState _state = new();
     private readonly Dictionary<string, int> _sectorIndexById = new(StringComparer.Ordinal);
-    private readonly Frustum _frustum = new();
-    private readonly Queue<string> _frontier = new();
-    private readonly List<(string OtherSectorId, Aabb PortalBounds)> _portalScratch = [];
+    private readonly Frustum _cameraFrustum = new();
+    private readonly Queue<(string SectorId, Frustum Frustum)> _frontier = new();
+    private readonly Stack<Frustum> _frustumPool = new();
+    private readonly HashSet<(string From, string To)> _expandedPortals = new();
+    private readonly List<(string OtherSectorId, int OtherIndex)> _portalScratch = [];
+    private readonly Vector3[] _portalCorners = new Vector3[4];
+    private readonly Vector3[] _clippedPortal = new Vector3[MaxClipVerts];
 
     public override void Load(GameWorld world, EventBus events)
     {
@@ -57,8 +66,10 @@ public sealed class SectorVisibilityFeature : FeatureBase
     {
         _sectorIndexById.Clear();
         _state.Visible.Clear();
-        _frontier.Clear();
+        RecycleFrontierFrustums();
         _portalScratch.Clear();
+        _expandedPortals.Clear();
+        _frustumPool.Clear();
     }
 
     private void RebuildSectorIndex(LevelData? level)
@@ -77,8 +88,9 @@ public sealed class SectorVisibilityFeature : FeatureBase
 
     private void ResolveVisibleSectors(GameWorld world)
     {
+        RecycleFrontierFrustums();
         _state.Visible.Clear();
-        _frontier.Clear();
+        _expandedPortals.Clear();
 
         var level = world.ActiveLevel;
         if (level is null)
@@ -96,13 +108,23 @@ public sealed class SectorVisibilityFeature : FeatureBase
             return;
         }
 
-        // Seed: current room always includes its immediate portal neighbors.
+        var eye = world.PlayerPosition;
+        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
+        _cameraFrustum.UpdateFromCamera(
+            eye,
+            forward,
+            Vector3.UnitY,
+            CameraFovYDegrees,
+            ResolveAspect(),
+            CameraNear,
+            CameraFar);
+
         if (!string.IsNullOrEmpty(world.CurrentSectorId))
         {
-            SeedSectorAndNeighbors(level, world.CurrentSectorId);
+            EnqueueSeed(world.CurrentSectorId);
         }
 
-        // Standing on a portal uses the same neighbour expansion as being in either end room.
+        // Standing in a portal volume: seed both rooms with the camera frustum.
         foreach (var portal in level.Portals)
         {
             if (!_sectorIndexById.TryGetValue(portal.FromSectorId, out var fromIndex) ||
@@ -111,75 +133,72 @@ public sealed class SectorVisibilityFeature : FeatureBase
                 continue;
             }
 
-            if (!DebugSectorLayout.PortalBounds(fromIndex, toIndex).ContainsXz(world.PlayerPosition))
+            if (!DebugSectorLayout.PortalBounds(fromIndex, toIndex).ContainsXz(eye))
             {
                 continue;
             }
 
-            SeedSectorAndNeighbors(level, portal.FromSectorId);
-            SeedSectorAndNeighbors(level, portal.ToSectorId);
-        }
-
-        if (_state.Visible.Count == 0)
-        {
-            return;
-        }
-
-        // Recurse through further portals that are actually in the camera frustum
-        // (e.g. see through room_b into rooms beyond while standing in room_a).
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        var aspect = ResolveAspect();
-        _frustum.UpdateFromCamera(
-            world.PlayerPosition,
-            forward,
-            Vector3.UnitY,
-            CameraFovYDegrees,
-            aspect,
-            CameraNear,
-            CameraFar);
-
-        foreach (var id in _state.Visible)
-        {
-            _frontier.Enqueue(id);
+            EnqueueSeed(portal.FromSectorId);
+            EnqueueSeed(portal.ToSectorId);
         }
 
         while (_frontier.Count > 0)
         {
-            var sectorId = _frontier.Dequeue();
-            CollectPortalsFrom(level, sectorId, _portalScratch);
-            foreach (var (otherId, portalBounds) in _portalScratch)
+            var (sectorId, frustum) = _frontier.Dequeue();
+            if (!_sectorIndexById.TryGetValue(sectorId, out var sectorIndex))
             {
-                if (_state.Visible.Contains(otherId))
+                ReturnFrustumIfRented(frustum);
+                continue;
+            }
+
+            CollectPortalsFrom(level, sectorId, _portalScratch);
+            foreach (var (otherId, otherIndex) in _portalScratch)
+            {
+                if (!_expandedPortals.Add((sectorId, otherId)))
                 {
                     continue;
                 }
 
-                if (!_frustum.IsAabbPotentiallyVisible(portalBounds, world.PlayerPosition, forward))
+                DebugSectorLayout.GetPortalOpening(sectorIndex, otherIndex, _portalCorners);
+                if (!frustum.TryClipPolygon(_portalCorners, _clippedPortal, out var clippedCount))
                 {
+                    continue;
+                }
+
+                var child = RentFrustum();
+                if (!child.TrySetFromEyeAndPortal(
+                        eye,
+                        _clippedPortal.AsSpan(0, clippedCount),
+                        frustum))
+                {
+                    ReturnFrustum(child);
                     continue;
                 }
 
                 _state.Visible.Add(otherId);
-                _frontier.Enqueue(otherId);
+                _frontier.Enqueue((otherId, child));
             }
+
+            ReturnFrustumIfRented(frustum);
         }
     }
 
-    private void SeedSectorAndNeighbors(LevelData level, string sectorId)
+    private void EnqueueSeed(string sectorId)
     {
-        _state.Visible.Add(sectorId);
-
-        CollectPortalsFrom(level, sectorId, _portalScratch);
-        foreach (var (otherId, _) in _portalScratch)
+        if (string.IsNullOrEmpty(sectorId) || !_state.Visible.Add(sectorId))
         {
-            _state.Visible.Add(otherId);
+            return;
         }
+
+        var copy = RentFrustum();
+        copy.CopyFrom(_cameraFrustum);
+        _frontier.Enqueue((sectorId, copy));
     }
 
     private void CollectPortalsFrom(
         LevelData level,
         string sectorId,
-        List<(string OtherSectorId, Aabb PortalBounds)> into)
+        List<(string OtherSectorId, int OtherIndex)> into)
     {
         into.Clear();
         foreach (var portal in level.Portals)
@@ -194,18 +213,34 @@ public sealed class SectorVisibilityFeature : FeatureBase
                 other = portal.FromSectorId;
             }
 
-            if (other is null)
+            if (other is null || !_sectorIndexById.TryGetValue(other, out var otherIndex))
             {
                 continue;
             }
 
-            if (!_sectorIndexById.TryGetValue(portal.FromSectorId, out var fromIndex) ||
-                !_sectorIndexById.TryGetValue(portal.ToSectorId, out var toIndex))
-            {
-                continue;
-            }
+            into.Add((other, otherIndex));
+        }
+    }
 
-            into.Add((other, DebugSectorLayout.PortalBounds(fromIndex, toIndex)));
+    private Frustum RentFrustum() =>
+        _frustumPool.Count > 0 ? _frustumPool.Pop() : new Frustum();
+
+    private void ReturnFrustum(Frustum frustum) => _frustumPool.Push(frustum);
+
+    private void ReturnFrustumIfRented(Frustum frustum)
+    {
+        if (!ReferenceEquals(frustum, _cameraFrustum))
+        {
+            ReturnFrustum(frustum);
+        }
+    }
+
+    private void RecycleFrontierFrustums()
+    {
+        while (_frontier.Count > 0)
+        {
+            var (_, frustum) = _frontier.Dequeue();
+            ReturnFrustumIfRented(frustum);
         }
     }
 
@@ -237,7 +272,5 @@ public sealed class SectorVisibilityFeature : FeatureBase
                 return;
             }
         }
-
-        // Keep last sector while crossing portal gaps / outside bounds.
     }
 }
