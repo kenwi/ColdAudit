@@ -85,6 +85,31 @@ public sealed class BasicLighting : IDisposable
         Raylib.SetShaderValue(_shader, _viewPosLoc, cameraPosition, ShaderUniformDataType.Vec3);
     }
 
+    /// <summary>
+    /// Begin drawing with the lighting shader (immediate-mode or custom meshes).
+    /// Caller must pair with <see cref="EndShaderMode"/>.
+    /// </summary>
+    public bool TryBeginShaderMode()
+    {
+        if (!IsLoaded)
+        {
+            return false;
+        }
+
+        Raylib.BeginShaderMode(_shader);
+        return true;
+    }
+
+    public void EndShaderMode()
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        Raylib.EndShaderMode();
+    }
+
     public void ApplyToModel(ModelHandle handle)
     {
         if (!IsLoaded || !handle.IsLoaded)

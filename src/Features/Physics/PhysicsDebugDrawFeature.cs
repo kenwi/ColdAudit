@@ -100,8 +100,11 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             cullVolumes = BuildWireframeCullVolumes(world);
         }
 
+        var lighting = world.Lighting is { IsLoaded: true } lit ? lit : null;
+
         Raylib.BeginMode3D(_camera);
         Raylib.BeginBlendMode(BlendMode.Alpha);
+        var useLighting = lighting is not null && lighting.TryBeginShaderMode();
         foreach (var wall in _physics.DebugWalls)
         {
             if (cullVolumes is not null && !PointInVolumes(wall.Center, cullVolumes))
@@ -109,15 +112,64 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
                 continue;
             }
 
-            // Double-sided so walls read from either room.
-            Raylib.DrawTriangle3D(wall.BottomLeft, wall.BottomRight, wall.TopRight, SolidWallColor);
-            Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopRight, wall.TopLeft, SolidWallColor);
-            Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopRight, wall.BottomRight, SolidWallColor);
-            Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopLeft, wall.TopRight, SolidWallColor);
+            if (useLighting)
+            {
+                DrawLitWallQuad(wall, SolidWallColor);
+            }
+            else
+            {
+                // Double-sided so walls read from either room.
+                Raylib.DrawTriangle3D(wall.BottomLeft, wall.BottomRight, wall.TopRight, SolidWallColor);
+                Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopRight, wall.TopLeft, SolidWallColor);
+                Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopRight, wall.BottomRight, SolidWallColor);
+                Raylib.DrawTriangle3D(wall.BottomLeft, wall.TopLeft, wall.TopRight, SolidWallColor);
+            }
+        }
+
+        if (useLighting)
+        {
+            lighting!.EndShaderMode();
         }
 
         Raylib.EndBlendMode();
         Raylib.EndMode3D();
+    }
+
+    /// <summary>
+    /// Immediate-mode wall with normals so the shared lighting shader can shade it.
+    /// </summary>
+    private static void DrawLitWallQuad(DebugWallQuad wall, Color color)
+    {
+        var edgeA = wall.BottomRight - wall.BottomLeft;
+        var edgeB = wall.TopLeft - wall.BottomLeft;
+        var normal = Vector3.Normalize(Vector3.Cross(edgeA, edgeB));
+        if (normal.LengthSquared() < 1e-8f)
+        {
+            return;
+        }
+
+        // White texture slot (0) so lighting.fs texel fetch stays neutral.
+        Rlgl.SetTexture(0);
+        DrawLitTriangle(wall.BottomLeft, wall.BottomRight, wall.TopRight, normal, color);
+        DrawLitTriangle(wall.BottomLeft, wall.TopRight, wall.TopLeft, normal, color);
+
+        var back = -normal;
+        DrawLitTriangle(wall.BottomLeft, wall.TopRight, wall.BottomRight, back, color);
+        DrawLitTriangle(wall.BottomLeft, wall.TopLeft, wall.TopRight, back, color);
+    }
+
+    private static void DrawLitTriangle(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Color color)
+    {
+        Rlgl.Begin(DrawMode.Triangles);
+        Rlgl.Color4ub(color.R, color.G, color.B, color.A);
+        Rlgl.Normal3f(normal.X, normal.Y, normal.Z);
+        Rlgl.TexCoord2f(0f, 0f);
+        Rlgl.Vertex3f(a.X, a.Y, a.Z);
+        Rlgl.TexCoord2f(1f, 0f);
+        Rlgl.Vertex3f(b.X, b.Y, b.Z);
+        Rlgl.TexCoord2f(1f, 1f);
+        Rlgl.Vertex3f(c.X, c.Y, c.Z);
+        Rlgl.End();
     }
 
     private void SyncCamera(GameWorld world)
