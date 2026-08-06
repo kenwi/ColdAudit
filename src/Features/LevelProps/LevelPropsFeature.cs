@@ -100,6 +100,8 @@ public sealed class LevelPropsFeature : FeatureBase
     {
         foreach (var handle in _handlesByPath.Values)
         {
+            // UnloadModel frees non-default material shaders; detach shared lighting first.
+            BasicLighting.DetachFromModel(handle);
             handle.Dispose();
         }
 

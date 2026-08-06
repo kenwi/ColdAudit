@@ -1,4 +1,5 @@
 using System.Numerics;
+using ColdAudit.Shared.Assets;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Math;
 using ColdAudit.Shared.World;
@@ -12,10 +13,14 @@ namespace ColdAudit.Features.Physics;
 /// </summary>
 public sealed class PhysicsDebugDrawFeature : FeatureBase
 {
+    private const float WallUvMetersPerTile = 2f;
     private static readonly Color SolidWallColor = new(80, 160, 200, 255);
+    private static readonly Color TexturedWallTint = Color.White;
 
     private readonly PhysicsFeature _physics;
     private Camera3D _camera;
+    private Texture2D _wallTexture;
+    private bool _wallTextureLoaded;
 
     public PhysicsDebugDrawFeature(PhysicsFeature physics)
     {
@@ -32,6 +37,15 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             FovY = 70f,
             Projection = CameraProjection.Perspective
         };
+
+        var path = TextureCatalog.WallPlasterPath;
+        if (File.Exists(path))
+        {
+            _wallTexture = Raylib.LoadTexture(path);
+            Raylib.SetTextureWrap(_wallTexture, TextureWrap.Repeat);
+            Raylib.SetTextureFilter(_wallTexture, TextureFilter.Bilinear);
+            _wallTextureLoaded = true;
+        }
     }
 
     public override void Draw(GameWorld world)
@@ -44,6 +58,15 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             case DebugDrawMode.SolidWalls:
                 DrawSolidWalls(world);
                 break;
+        }
+    }
+
+    public override void Unload()
+    {
+        if (_wallTextureLoaded)
+        {
+            Raylib.UnloadTexture(_wallTexture);
+            _wallTextureLoaded = false;
         }
     }
 
@@ -114,7 +137,7 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
 
             if (useLighting)
             {
-                DrawLitWallQuad(wall, SolidWallColor);
+                DrawLitWallQuad(wall, TexturedWallTint);
             }
             else
             {
@@ -138,7 +161,7 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
     /// <summary>
     /// Immediate-mode wall with normals so the shared lighting shader can shade it.
     /// </summary>
-    private static void DrawLitWallQuad(DebugWallQuad wall, Color color)
+    private void DrawLitWallQuad(DebugWallQuad wall, Color color)
     {
         var edgeA = wall.BottomRight - wall.BottomLeft;
         var edgeB = wall.TopLeft - wall.BottomLeft;
@@ -148,26 +171,57 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             return;
         }
 
-        // White texture slot (0) so lighting.fs texel fetch stays neutral.
-        Rlgl.SetTexture(0);
-        DrawLitTriangle(wall.BottomLeft, wall.BottomRight, wall.TopRight, normal, color);
-        DrawLitTriangle(wall.BottomLeft, wall.TopRight, wall.TopLeft, normal, color);
+        var width = edgeA.Length();
+        var height = edgeB.Length();
+        var uMax = System.MathF.Max(width / WallUvMetersPerTile, 1e-3f);
+        var vMax = System.MathF.Max(height / WallUvMetersPerTile, 1e-3f);
+
+        if (_wallTextureLoaded)
+        {
+            Rlgl.SetTexture(_wallTexture.Id);
+        }
+        else
+        {
+            Rlgl.SetTexture(0);
+        }
+
+        DrawLitTriangle(
+            wall.BottomLeft, wall.BottomRight, wall.TopRight, normal, color,
+            0f, 0f, uMax, 0f, uMax, vMax);
+        DrawLitTriangle(
+            wall.BottomLeft, wall.TopRight, wall.TopLeft, normal, color,
+            0f, 0f, uMax, vMax, 0f, vMax);
 
         var back = -normal;
-        DrawLitTriangle(wall.BottomLeft, wall.TopRight, wall.BottomRight, back, color);
-        DrawLitTriangle(wall.BottomLeft, wall.TopLeft, wall.TopRight, back, color);
+        DrawLitTriangle(
+            wall.BottomLeft, wall.TopRight, wall.BottomRight, back, color,
+            0f, 0f, uMax, vMax, uMax, 0f);
+        DrawLitTriangle(
+            wall.BottomLeft, wall.TopLeft, wall.TopRight, back, color,
+            0f, 0f, 0f, vMax, uMax, vMax);
     }
 
-    private static void DrawLitTriangle(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Color color)
+    private static void DrawLitTriangle(
+        Vector3 a,
+        Vector3 b,
+        Vector3 c,
+        Vector3 normal,
+        Color color,
+        float ua,
+        float va,
+        float ub,
+        float vb,
+        float uc,
+        float vc)
     {
         Rlgl.Begin(DrawMode.Triangles);
         Rlgl.Color4ub(color.R, color.G, color.B, color.A);
         Rlgl.Normal3f(normal.X, normal.Y, normal.Z);
-        Rlgl.TexCoord2f(0f, 0f);
+        Rlgl.TexCoord2f(ua, va);
         Rlgl.Vertex3f(a.X, a.Y, a.Z);
-        Rlgl.TexCoord2f(1f, 0f);
+        Rlgl.TexCoord2f(ub, vb);
         Rlgl.Vertex3f(b.X, b.Y, b.Z);
-        Rlgl.TexCoord2f(1f, 1f);
+        Rlgl.TexCoord2f(uc, vc);
         Rlgl.Vertex3f(c.X, c.Y, c.Z);
         Rlgl.End();
     }

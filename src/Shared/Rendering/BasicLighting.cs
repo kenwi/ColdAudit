@@ -124,6 +124,40 @@ public sealed class BasicLighting : IDisposable
         }
     }
 
+    public void ApplyToMaterial(ref Material material)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        material.Shader = _shader;
+    }
+
+    /// <summary>
+    /// Replace the shared lighting shader with Raylib's default so
+    /// <see cref="Raylib.UnloadModel"/> / <see cref="Raylib.UnloadMaterial"/> do not free it.
+    /// </summary>
+    public static void DetachFromModel(ModelHandle handle)
+    {
+        if (!handle.IsLoaded)
+        {
+            return;
+        }
+
+        var model = handle.Model;
+        var defaultShader = CreateDefaultShader();
+        for (var i = 0; i < model.MaterialCount; i++)
+        {
+            Raylib.SetMaterialShader(ref model, i, ref defaultShader);
+        }
+    }
+
+    public static void DetachFromMaterial(ref Material material)
+    {
+        material.Shader = CreateDefaultShader();
+    }
+
     public void Unload()
     {
         if (!IsLoaded)
@@ -140,6 +174,13 @@ public sealed class BasicLighting : IDisposable
     }
 
     public void Dispose() => Unload();
+
+    private static unsafe Shader CreateDefaultShader() =>
+        new()
+        {
+            Id = Rlgl.GetShaderIdDefault(),
+            Locs = Rlgl.GetShaderLocsDefault()
+        };
 
     private SceneLight? AddLight(LightType type, Vector3 position, Vector3 target, Color color)
     {
