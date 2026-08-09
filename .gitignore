@@ -7,3 +7,6 @@ obj/
 *.DotSettings.user
 *.log
 .DS_Store
+profiling/
+!profiling/install-tools.sh
+!profiling/run-profile.sh
