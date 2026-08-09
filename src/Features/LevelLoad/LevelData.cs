@@ -43,6 +43,15 @@ public sealed class SectorDef
     public string? ModelPath { get; init; }
     public bool RenderEnabled { get; set; } = true;
     public Aabb Bounds { get; init; }
+
+    /// <summary>
+    /// GLB used as a static triangle-mesh collider at the sector origin.
+    /// Null/empty keeps placeholder AABB floor/walls from <c>LevelCollisionBuilder</c>.
+    /// May equal <see cref="ModelPath"/> or point at a simplified collider asset.
+    /// </summary>
+    public string? CollisionMeshPath { get; init; }
+
+    public bool HasCollisionMesh => !string.IsNullOrWhiteSpace(CollisionMeshPath);
 }
 
 public sealed class PortalDef
@@ -52,6 +61,23 @@ public sealed class PortalDef
     public string ToSectorId { get; init; } = string.Empty;
     public bool TwoWay { get; init; } = true;
     public Vector3[] Corners { get; init; } = [];
+
+    /// <summary>
+    /// Optional doorway/corridor GLB drawn at the level origin (world-authored like sectors).
+    /// Null/empty keeps the placeholder portal strip from <c>LevelModelsFeature</c>.
+    /// </summary>
+    public string? ModelPath { get; init; }
+
+    /// <summary>
+    /// GLB used as a static triangle-mesh collider at the level origin.
+    /// Null/empty keeps placeholder portal boxes from <c>LevelCollisionBuilder</c>
+    /// (unless both sectors already use mesh collision).
+    /// May equal <see cref="ModelPath"/> or point at a simplified collider asset.
+    /// </summary>
+    public string? CollisionMeshPath { get; init; }
+
+    public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
+    public bool HasCollisionMesh => !string.IsNullOrWhiteSpace(CollisionMeshPath);
 }
 
 public enum InteractableKind

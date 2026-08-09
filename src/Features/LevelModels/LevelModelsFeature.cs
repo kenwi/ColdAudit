@@ -19,6 +19,7 @@ public sealed class LevelModelsFeature : FeatureBase
     private static float TileMeters => DebugSectorLayout.Extent / SurfaceUvTiles;
 
     private readonly Dictionary<string, ModelHandle> _handles = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ModelHandle> _portalHandles = new(StringComparer.Ordinal);
     private readonly HashSet<string> _missingSectorIds = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _sectorIndexById = new(StringComparer.Ordinal);
     private Camera3D _camera;
@@ -71,6 +72,19 @@ public sealed class LevelModelsFeature : FeatureBase
             world.Lighting?.ApplyToModel(handle);
             _handles[sector.Id] = handle;
         }
+
+        foreach (var portal in level.Portals)
+        {
+            if (!portal.HasModel || !File.Exists(portal.ModelPath!))
+            {
+                continue;
+            }
+
+            var handle = new ModelHandle();
+            handle.Load(portal.ModelPath!);
+            world.Lighting?.ApplyToModel(handle);
+            _portalHandles[portal.Id] = handle;
+        }
     }
 
     public override void Draw(GameWorld world)
@@ -109,7 +123,7 @@ public sealed class LevelModelsFeature : FeatureBase
             }
         }
 
-        DrawPortalPlaceholders(world, world.ActiveLevel);
+        DrawPortals(world, world.ActiveLevel);
 
         Raylib.EndMode3D();
     }
@@ -122,7 +136,14 @@ public sealed class LevelModelsFeature : FeatureBase
             handle.Dispose();
         }
 
+        foreach (var handle in _portalHandles.Values)
+        {
+            BasicLighting.DetachFromModel(handle);
+            handle.Dispose();
+        }
+
         _handles.Clear();
+        _portalHandles.Clear();
         _missingSectorIds.Clear();
         _sectorIndexById.Clear();
         UnloadPlaceholderSurfaces();
@@ -269,7 +290,7 @@ public sealed class LevelModelsFeature : FeatureBase
         Rlgl.EnableBackfaceCulling();
     }
 
-    private void DrawPortalPlaceholders(GameWorld world, LevelData level)
+    private void DrawPortals(GameWorld world, LevelData level)
     {
         foreach (var portal in level.Portals)
         {
@@ -284,6 +305,18 @@ public sealed class LevelModelsFeature : FeatureBase
             var fromDrawn = fromSector.RenderEnabled && IsSectorDrawn(world, portal.FromSectorId);
             var toDrawn = toSector.RenderEnabled && IsSectorDrawn(world, portal.ToSectorId);
             if (!fromDrawn && !toDrawn)
+            {
+                continue;
+            }
+
+            if (_portalHandles.TryGetValue(portal.Id, out var handle) && handle.IsLoaded)
+            {
+                Raylib.DrawModel(handle.Model, Vector3.Zero, 1f, Color.White);
+                continue;
+            }
+
+            // Authored portal mesh missing/failed: no placeholder strip for HasModel portals.
+            if (portal.HasModel)
             {
                 continue;
             }

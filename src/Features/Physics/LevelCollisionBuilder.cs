@@ -10,6 +10,8 @@ namespace ColdAudit.Features.Physics;
 /// <summary>
 /// Builds static Box3D colliders from placeholder sector AABBs: one continuous floor
 /// (avoids portal seam hitches) plus perimeter walls with portal cutouts.
+/// Sectors with <see cref="SectorDef.CollisionMeshPath"/> skip AABB colliders
+/// (mesh bodies come from <see cref="ModelCollisionBuilder"/>).
 /// </summary>
 internal static class LevelCollisionBuilder
 {
@@ -30,9 +32,11 @@ internal static class LevelCollisionBuilder
         Box3DWorld world,
         LevelData level,
         List<DebugWallQuad> walls,
-        out Aabb floorBounds)
+        out Aabb floorBounds,
+        out bool hasFloor)
     {
         floorBounds = default;
+        hasFloor = false;
         var indexById = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < level.Sectors.Count; i++)
         {
@@ -47,6 +51,7 @@ internal static class LevelCollisionBuilder
         if (TryComputeFloorBounds(level, indexById, out floorBounds))
         {
             AddFloor(world, floorBounds);
+            hasFloor = true;
             bodyCount++;
         }
 
@@ -58,14 +63,27 @@ internal static class LevelCollisionBuilder
                 continue;
             }
 
+            var from = level.Sectors[fromIndex];
+            var to = level.Sectors[toIndex];
+            // Mesh-authored portals/sectors own their geometry; skip placeholder portal boxes.
+            if (portal.HasCollisionMesh || from.HasCollisionMesh || to.HasCollisionMesh)
+            {
+                continue;
+            }
+
             var portalBounds = DebugSectorLayout.PortalBounds(fromIndex, toIndex);
-            RegisterOpening(openings, portal.FromSectorId, level.Sectors[fromIndex].Bounds, portalBounds);
-            RegisterOpening(openings, portal.ToSectorId, level.Sectors[toIndex].Bounds, portalBounds);
+            RegisterOpening(openings, portal.FromSectorId, from.Bounds, portalBounds);
+            RegisterOpening(openings, portal.ToSectorId, to.Bounds, portalBounds);
             bodyCount += AddPortalSideWalls(world, portalBounds, walls);
         }
 
         foreach (var sector in level.Sectors)
         {
+            if (sector.HasCollisionMesh)
+            {
+                continue;
+            }
+
             bodyCount += AddWalls(world, sector.Id, sector.Bounds, openings, walls);
         }
 
@@ -78,23 +96,47 @@ internal static class LevelCollisionBuilder
         out Aabb floorBounds)
     {
         floorBounds = default;
-        if (level.Sectors.Count == 0)
+
+        var first = true;
+        var min = Vector3.Zero;
+        var max = Vector3.Zero;
+
+        for (var i = 0; i < level.Sectors.Count; i++)
         {
-            return false;
+            var sector = level.Sectors[i];
+            if (sector.HasCollisionMesh)
+            {
+                continue;
+            }
+
+            if (first)
+            {
+                min = sector.Bounds.Min;
+                max = sector.Bounds.Max;
+                first = false;
+            }
+            else
+            {
+                Expand(ref min, ref max, sector.Bounds);
+            }
         }
 
-        var min = level.Sectors[0].Bounds.Min;
-        var max = level.Sectors[0].Bounds.Max;
-
-        for (var i = 1; i < level.Sectors.Count; i++)
+        if (first)
         {
-            Expand(ref min, ref max, level.Sectors[i].Bounds);
+            return false;
         }
 
         foreach (var portal in level.Portals)
         {
             if (!indexById.TryGetValue(portal.FromSectorId, out var fromIndex) ||
                 !indexById.TryGetValue(portal.ToSectorId, out var toIndex))
+            {
+                continue;
+            }
+
+            if (portal.HasCollisionMesh ||
+                level.Sectors[fromIndex].HasCollisionMesh ||
+                level.Sectors[toIndex].HasCollisionMesh)
             {
                 continue;
             }

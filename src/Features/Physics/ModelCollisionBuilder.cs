@@ -7,8 +7,8 @@ using ColdAudit.Shared.Rendering;
 namespace ColdAudit.Features.Physics;
 
 /// <summary>
-/// Cooks static Box3D triangle meshes from <see cref="ModelPlacementDef.CollisionMeshPath"/>.
-/// Mesh data is shared per path; each placement gets its own static body (pose + scale).
+/// Cooks static Box3D triangle meshes from sector, portal, and model-placement collision paths.
+/// Mesh data is shared per path; each owner gets its own static body.
 /// </summary>
 internal static class ModelCollisionBuilder
 {
@@ -17,6 +17,48 @@ internal static class ModelCollisionBuilder
         var meshByPath = new Dictionary<string, Box3DMesh?>(StringComparer.Ordinal);
         var bodyCount = 0;
 
+        foreach (var sector in level.Sectors)
+        {
+            if (!sector.HasCollisionMesh)
+            {
+                continue;
+            }
+
+            if (TryAddBody(
+                    world,
+                    meshByPath,
+                    ownedMeshes,
+                    sector.CollisionMeshPath!,
+                    sector.Id,
+                    position: default,
+                    yawDegrees: 0f,
+                    scale: 1f))
+            {
+                bodyCount++;
+            }
+        }
+
+        foreach (var portal in level.Portals)
+        {
+            if (!portal.HasCollisionMesh)
+            {
+                continue;
+            }
+
+            if (TryAddBody(
+                    world,
+                    meshByPath,
+                    ownedMeshes,
+                    portal.CollisionMeshPath!,
+                    portal.Id,
+                    position: default,
+                    yawDegrees: 0f,
+                    scale: 1f))
+            {
+                bodyCount++;
+            }
+        }
+
         foreach (var placement in level.ModelPlacements)
         {
             if (!placement.HasCollisionMesh)
@@ -24,40 +66,62 @@ internal static class ModelCollisionBuilder
                 continue;
             }
 
-            var path = placement.CollisionMeshPath!;
-            if (!meshByPath.TryGetValue(path, out var mesh))
+            if (TryAddBody(
+                    world,
+                    meshByPath,
+                    ownedMeshes,
+                    placement.CollisionMeshPath!,
+                    placement.Id,
+                    placement.Position,
+                    placement.YawDegrees,
+                    placement.Scale))
             {
-                mesh = TryCreateMesh(path);
-                meshByPath[path] = mesh;
-                if (mesh is not null)
-                {
-                    ownedMeshes.Add(mesh);
-                }
+                bodyCount++;
             }
-
-            if (mesh is null)
-            {
-                continue;
-            }
-
-            var scale = placement.Scale;
-            if (scale <= 0f)
-            {
-                Console.WriteLine($"[Physics] skip collision mesh for '{placement.Id}': scale={scale}");
-                continue;
-            }
-
-            var def = Box3DWorld.DefaultBodyDef();
-            def.Type = B3BodyType.Static;
-            def.Position = new B3Pos(placement.Position.X, placement.Position.Y, placement.Position.Z);
-            def.Rotation = YawDegreesToQuat(placement.YawDegrees);
-
-            var body = world.CreateBody(in def);
-            body.AddMesh(mesh, new B3Vec3(scale, scale, scale));
-            bodyCount++;
         }
 
         return bodyCount;
+    }
+
+    private static bool TryAddBody(
+        Box3DWorld world,
+        Dictionary<string, Box3DMesh?> meshByPath,
+        List<Box3DMesh> ownedMeshes,
+        string path,
+        string ownerId,
+        System.Numerics.Vector3 position,
+        float yawDegrees,
+        float scale)
+    {
+        if (!meshByPath.TryGetValue(path, out var mesh))
+        {
+            mesh = TryCreateMesh(path);
+            meshByPath[path] = mesh;
+            if (mesh is not null)
+            {
+                ownedMeshes.Add(mesh);
+            }
+        }
+
+        if (mesh is null)
+        {
+            return false;
+        }
+
+        if (scale <= 0f)
+        {
+            Console.WriteLine($"[Physics] skip collision mesh for '{ownerId}': scale={scale}");
+            return false;
+        }
+
+        var def = Box3DWorld.DefaultBodyDef();
+        def.Type = B3BodyType.Static;
+        def.Position = new B3Pos(position.X, position.Y, position.Z);
+        def.Rotation = YawDegreesToQuat(yawDegrees);
+
+        var body = world.CreateBody(in def);
+        body.AddMesh(mesh, new B3Vec3(scale, scale, scale));
+        return true;
     }
 
     private static Box3DMesh? TryCreateMesh(string path)

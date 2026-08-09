@@ -15,7 +15,8 @@ public sealed class LevelLoadFeature : FeatureBase
     {
         _world = world;
         Session.LevelId = LevelCatalog.WingB;
-        Level = CreatePlaceholderLevel(Session.LevelId);
+        // Level = CreatePlaceholderLevel(Session.LevelId);
+        Level = CreateTestLevel();
         Session.IsLoaded = true;
         world.ActiveLevel = Level;
 
@@ -37,6 +38,80 @@ public sealed class LevelLoadFeature : FeatureBase
         Level = null;
         Session.IsLoaded = false;
         _world = null;
+    }
+
+    private static LevelData CreateTestLevel()
+    {
+        // Flat export under content/levels/ (not content/models/, and not wing_b/room_a.glb).
+        var level = new LevelData
+        {
+            LevelId = "test_level",
+            PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f)
+        };
+
+        var room_a = Path.Combine(ContentPaths.Levels, "room_a.glb");
+        level.Sectors.Add(new SectorDef
+        {
+            Id = "room_a",
+            ModelPath = room_a,
+            CollisionMeshPath = room_a
+        });
+
+        var room_b = Path.Combine(ContentPaths.Levels, "room_b.glb");
+        level.Sectors.Add(new SectorDef
+        {
+            Id = "room_b",
+            ModelPath = room_b,
+            CollisionMeshPath = room_b
+        });
+
+        var room_c = Path.Combine(ContentPaths.Levels, "room_c.glb");
+        level.Sectors.Add(new SectorDef
+        {
+            Id = "room_c",
+            ModelPath = room_c,
+            CollisionMeshPath = room_c
+        });
+
+        var room_d = Path.Combine(ContentPaths.Levels, "room_d.glb");
+        level.Sectors.Add(new SectorDef
+        {
+            Id = "room_d",
+            ModelPath = room_d,
+            CollisionMeshPath = room_d
+        });
+
+        var portalAb = Path.Combine(ContentPaths.Levels, "portal_a_b.glb");
+        level.Portals.Add(new PortalDef
+        {
+            Id = "portal_a_b",
+            FromSectorId = "room_a",
+            ToSectorId = "room_b",
+            ModelPath = portalAb,
+            CollisionMeshPath = portalAb
+        });
+
+        var portalBc = Path.Combine(ContentPaths.Levels, "portal_b_c.glb");
+        level.Portals.Add(new PortalDef
+        {
+            Id = "portal_b_c",
+            FromSectorId = "room_b",
+            ToSectorId = "room_c",
+            ModelPath = portalBc,
+            CollisionMeshPath = portalBc
+        });
+
+        var portalBd = Path.Combine(ContentPaths.Levels, "portal_b_d.glb");
+        level.Portals.Add(new PortalDef
+        {
+            Id = "portal_b_d",
+            FromSectorId = "room_b",
+            ToSectorId = "room_d",
+            ModelPath = portalBd,
+            CollisionMeshPath = portalBd
+        });
+        
+        return level;
     }
 
     private static LevelData CreatePlaceholderLevel(string levelId)

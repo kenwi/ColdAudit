@@ -42,9 +42,9 @@ public sealed class PhysicsFeature : FeatureBase
                 _world,
                 world.ActiveLevel,
                 _debugWalls,
-                out _floorBounds);
+                out _floorBounds,
+                out _hasFloorBounds);
             _staticBodyCount += ModelCollisionBuilder.Build(_world, world.ActiveLevel, _collisionMeshes);
-            _hasFloorBounds = true;
         }
 
         var version = Box3DWorld.NativeVersion;
@@ -287,7 +287,7 @@ public sealed class PhysicsFeature : FeatureBase
         using var world = new Box3DWorld(gravity: new B3Vec3(0f, -9.8f, 0f), debugShapes: true);
         var level = CreateSmokeLevel();
         var walls = new List<DebugWallQuad>();
-        var bodies = LevelCollisionBuilder.Build(world, level, walls, out _);
+        var bodies = LevelCollisionBuilder.Build(world, level, walls, out _, out _);
         var filter = Box3DWorld.DefaultQueryFilter();
 
         var floor = world.CastRayClosest(new B3Pos(0, 5, 0), new B3Vec3(0, -10, 0), filter);
