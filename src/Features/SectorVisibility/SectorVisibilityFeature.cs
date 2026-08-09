@@ -28,14 +28,12 @@ public sealed class SectorVisibilityFeature : FeatureBase
     private readonly SectorVisibilityState _state = new();
     private readonly Dictionary<string, int> _sectorIndexById = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Aabb> _sectorBoundsById = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Aabb> _portalBoundsById = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Vector3[]> _portalOpeningsById = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<PortalEdge>> _edgesBySector = new(StringComparer.Ordinal);
+    private readonly List<PortalSeed> _portalSeeds = [];
     private readonly Frustum _cameraFrustum = new();
     private readonly Queue<(string SectorId, Frustum Frustum)> _frontier = new();
     private readonly Stack<Frustum> _frustumPool = new();
     private readonly HashSet<(string From, string To)> _expandedPortals = new();
-    private readonly List<(string OtherSectorId, PortalDef Portal)> _portalScratch = [];
-    private readonly Vector3[] _facingPortal = new Vector3[MaxClipVerts];
     private readonly Vector3[] _clippedPortal = new Vector3[MaxClipVerts];
 
     public override void Load(GameWorld world, EventBus events)
@@ -70,7 +68,6 @@ public sealed class SectorVisibilityFeature : FeatureBase
         ClearCaches();
         _state.Visible.Clear();
         RecycleFrontierFrustums();
-        _portalScratch.Clear();
         _expandedPortals.Clear();
         _frustumPool.Clear();
     }
@@ -88,6 +85,7 @@ public sealed class SectorVisibilityFeature : FeatureBase
             var sector = level.Sectors[i];
             _sectorIndexById[sector.Id] = i;
             _sectorBoundsById[sector.Id] = AuthoredLevelGeometry.ResolveSectorBounds(sector, i);
+            _edgesBySector[sector.Id] = [];
         }
 
         foreach (var portal in level.Portals)
@@ -106,29 +104,67 @@ public sealed class SectorVisibilityFeature : FeatureBase
                 toIndex,
                 fromBounds,
                 toBounds);
-            _portalBoundsById[portal.Id] = portalBounds;
 
-            var opening = new Vector3[4];
-            if (AuthoredLevelGeometry.TryWritePortalOpening(
+            var openingForward = new Vector3[4];
+            if (!AuthoredLevelGeometry.TryWritePortalOpening(
                     portal,
                     fromIndex,
                     toIndex,
                     portalBounds,
                     fromBounds,
                     toBounds,
-                    opening))
+                    openingForward))
             {
-                _portalOpeningsById[portal.Id] = opening;
+                continue;
+            }
+
+            _portalSeeds.Add(new PortalSeed(portal.FromSectorId, portal.ToSectorId, portalBounds));
+
+            AddEdge(portal.FromSectorId, portal.ToSectorId, portalBounds, openingForward);
+
+            if (portal.TwoWay)
+            {
+                AddEdge(
+                    portal.ToSectorId,
+                    portal.FromSectorId,
+                    portalBounds,
+                    ReverseOpening(openingForward));
             }
         }
+    }
+
+    private void AddEdge(
+        string fromSectorId,
+        string toSectorId,
+        Aabb portalBounds,
+        Vector3[] opening)
+    {
+        if (!_edgesBySector.TryGetValue(fromSectorId, out var edges))
+        {
+            edges = [];
+            _edgesBySector[fromSectorId] = edges;
+        }
+
+        edges.Add(new PortalEdge(toSectorId, portalBounds, opening));
+    }
+
+    private static Vector3[] ReverseOpening(Vector3[] opening)
+    {
+        var reversed = new Vector3[opening.Length];
+        for (var i = 0; i < opening.Length; i++)
+        {
+            reversed[i] = opening[opening.Length - 1 - i];
+        }
+
+        return reversed;
     }
 
     private void ClearCaches()
     {
         _sectorIndexById.Clear();
         _sectorBoundsById.Clear();
-        _portalBoundsById.Clear();
-        _portalOpeningsById.Clear();
+        _edgesBySector.Clear();
+        _portalSeeds.Clear();
     }
 
     private void ResolveVisibleSectors(GameWorld world)
@@ -170,48 +206,40 @@ public sealed class SectorVisibilityFeature : FeatureBase
         }
 
         // Standing in a portal volume: seed both rooms with the camera frustum.
-        foreach (var portal in level.Portals)
+        foreach (var seed in _portalSeeds)
         {
-            if (!_portalBoundsById.TryGetValue(portal.Id, out var portalBounds) ||
-                !portalBounds.ContainsXz(eye))
+            if (!seed.Bounds.ContainsXz(eye))
             {
                 continue;
             }
 
-            EnqueueSeed(portal.FromSectorId);
-            EnqueueSeed(portal.ToSectorId);
+            EnqueueSeed(seed.FromSectorId);
+            EnqueueSeed(seed.ToSectorId);
         }
 
         while (_frontier.Count > 0)
         {
             var (sectorId, frustum) = _frontier.Dequeue();
-            if (!_sectorIndexById.ContainsKey(sectorId))
+            if (!_edgesBySector.TryGetValue(sectorId, out var edges))
             {
                 ReturnFrustumIfRented(frustum);
                 continue;
             }
 
-            CollectPortalsFrom(level, sectorId, _portalScratch);
-            foreach (var (otherId, portal) in _portalScratch)
+            foreach (var edge in edges)
             {
-                if (!_expandedPortals.Add((sectorId, otherId)))
+                if (!_expandedPortals.Add((sectorId, edge.OtherSectorId)))
                 {
                     continue;
                 }
 
-                if (!_portalOpeningsById.TryGetValue(portal.Id, out var opening))
+                // Cheap reject before polygon clip.
+                if (!frustum.IntersectsAabb(edge.Bounds))
                 {
                     continue;
                 }
 
-                // Wind opening toward the sector we are entering.
-                var openingCount = System.Math.Min(opening.Length, _facingPortal.Length);
-                WriteOpeningFacing(opening, sectorId, portal, _facingPortal.AsSpan(0, openingCount));
-
-                if (!frustum.TryClipPolygon(
-                        _facingPortal.AsSpan(0, openingCount),
-                        _clippedPortal,
-                        out var clippedCount))
+                if (!frustum.TryClipPolygon(edge.Opening, _clippedPortal, out var clippedCount))
                 {
                     continue;
                 }
@@ -226,38 +254,11 @@ public sealed class SectorVisibilityFeature : FeatureBase
                     continue;
                 }
 
-                _state.Visible.Add(otherId);
-                _frontier.Enqueue((otherId, child));
+                _state.Visible.Add(edge.OtherSectorId);
+                _frontier.Enqueue((edge.OtherSectorId, child));
             }
 
             ReturnFrustumIfRented(frustum);
-        }
-    }
-
-    private void WriteOpeningFacing(
-        Vector3[] opening,
-        string fromSectorId,
-        PortalDef portal,
-        Span<Vector3> facing)
-    {
-        var count = System.Math.Min(opening.Length, facing.Length);
-        var reverse = portal.TwoWay &&
-                      portal.ToSectorId == fromSectorId &&
-                      portal.FromSectorId != fromSectorId;
-
-        if (!reverse)
-        {
-            for (var i = 0; i < count; i++)
-            {
-                facing[i] = opening[i];
-            }
-
-            return;
-        }
-
-        for (var i = 0; i < count; i++)
-        {
-            facing[i] = opening[count - 1 - i];
         }
     }
 
@@ -271,33 +272,6 @@ public sealed class SectorVisibilityFeature : FeatureBase
         var copy = RentFrustum();
         copy.CopyFrom(_cameraFrustum);
         _frontier.Enqueue((sectorId, copy));
-    }
-
-    private void CollectPortalsFrom(
-        LevelData level,
-        string sectorId,
-        List<(string OtherSectorId, PortalDef Portal)> into)
-    {
-        into.Clear();
-        foreach (var portal in level.Portals)
-        {
-            string? other = null;
-            if (portal.FromSectorId == sectorId)
-            {
-                other = portal.ToSectorId;
-            }
-            else if (portal.TwoWay && portal.ToSectorId == sectorId)
-            {
-                other = portal.FromSectorId;
-            }
-
-            if (other is null || !_sectorIndexById.ContainsKey(other))
-            {
-                continue;
-            }
-
-            into.Add((other, portal));
-        }
     }
 
     private Frustum RentFrustum() =>
@@ -368,4 +342,14 @@ public sealed class SectorVisibilityFeature : FeatureBase
             world.CurrentSectorId = bestId;
         }
     }
+
+    private readonly record struct PortalEdge(
+        string OtherSectorId,
+        Aabb Bounds,
+        Vector3[] Opening);
+
+    private readonly record struct PortalSeed(
+        string FromSectorId,
+        string ToSectorId,
+        Aabb Bounds);
 }
