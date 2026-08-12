@@ -1,8 +1,8 @@
 import bpy
 import os
 
-TARGET_DIR = ""
-EXPORT_CURVES = True
+TARGET_DIR = "../content/levels"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def clean_filename(name):
     invalid = '<>:"/\\|?*'
@@ -11,6 +11,8 @@ def clean_filename(name):
     return name.strip() or "mesh"
 
 def main():
+    if not os.path.isabs(TARGET_DIR):
+        TARGET_DIR = os.path.join(SCRIPT_DIR, TARGET_DIR)
     os.makedirs(TARGET_DIR, exist_ok=True)
     meshes = [
         o for o in bpy.context.scene.objects
