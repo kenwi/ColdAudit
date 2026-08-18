@@ -15,4 +15,15 @@ public static class MathUtil
         var sp = MathF.Sin(pitch);
         return Vector3.Normalize(new Vector3(sy * cp, sp, cy * cp));
     }
+
+    public static float MoveTowards(float current, float target, float maxDelta)
+    {
+        var delta = target - current;
+        if (MathF.Abs(delta) <= maxDelta)
+        {
+            return target;
+        }
+
+        return current + MathF.Sign(delta) * maxDelta;
+    }
 }

@@ -46,7 +46,8 @@ public sealed class LevelLoadFeature : FeatureBase
         var level = new LevelData
         {
             LevelId = "test_level",
-            PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f)
+            PlayerSpawn = new System.Numerics.Vector3(0f, 1.7f, 0f),
+            PlayerSpawnYaw = MathF.PI
         };
 
         var room_a = Path.Combine(ContentPaths.Levels, "room_a.glb");
@@ -110,7 +111,25 @@ public sealed class LevelLoadFeature : FeatureBase
             ModelPath = portalBd,
             CollisionMeshPath = portalBd
         });
-        
+
+        // Placeholder box doors. Hinge is the pivot; swap in ModelPath later (origin at hinge).
+        level.Doors.Add(new DoorDef
+        {
+            Id = "door_debug",
+            SectorId = "room_a",
+            HingePosition = new System.Numerics.Vector3(-0.45f, 0f, -3.5f),
+            ClosedYawDegrees = 0f,
+            Locked = false
+        });
+        level.Doors.Add(new DoorDef
+        {
+            Id = "door_a_b",
+            SectorId = "room_a",
+            HingePosition = new System.Numerics.Vector3(4.47f, 0f, -13.5f),
+            ClosedYawDegrees = 0f,
+            Locked = false
+        });
+
         return level;
     }
 

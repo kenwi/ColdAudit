@@ -12,6 +12,7 @@ public sealed class LevelData
     public List<PortalDef> Portals { get; } = [];
     public List<InteractableDef> Interactables { get; } = [];
     public List<ModelPlacementDef> ModelPlacements { get; } = [];
+    public List<DoorDef> Doors { get; } = [];
 }
 
 /// <summary>
@@ -99,4 +100,29 @@ public sealed class InteractableDef
     public string SectorId { get; init; } = string.Empty;
     public Vector3 Position { get; init; }
     public Dictionary<string, string> Params { get; init; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>
+/// Authored door. <see cref="HingePosition"/> is the floor pivot (model origin later).
+/// Local +X is width away from the hinge, +Y is up, thickness is along local Z.
+/// </summary>
+public sealed class DoorDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string SectorId { get; init; } = string.Empty;
+    public Vector3 HingePosition { get; init; }
+    public float ClosedYawDegrees { get; init; }
+    public float Width { get; init; } = 1.5f;
+    public float Height { get; init; } = 2.5f;
+    public float Thickness { get; init; } = 0.08f;
+    public float OpenAngleDegrees { get; init; } = 90f;
+    public float InteractRadius { get; init; } = 2.5f;
+    public bool Locked { get; init; }
+
+    /// <summary>
+    /// Optional GLB. Null/empty draws the placeholder box. Model origin should be the hinge.
+    /// </summary>
+    public string? ModelPath { get; init; }
+
+    public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
 }

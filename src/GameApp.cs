@@ -92,10 +92,11 @@ public sealed class GameApp
         _features.Add(new LevelLoadFeature());
         _features.Add(physics);
         _features.Add(new FullscreenFeature());
+        var doors = new DoorsAccessFeature();
         _features.Add(new PlayerControllerFeature(physics));
-        _features.Add(new InteractionFeature());
+        _features.Add(new InteractionFeature(doors));
         _features.Add(new InventoryFeature());
-        _features.Add(new DoorsAccessFeature());
+        _features.Add(doors);
         _features.Add(new CamerasFeature());
         _features.Add(new WorkstationsFeature());
         _features.Add(new DetectionHeatFeature());

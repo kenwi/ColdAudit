@@ -28,7 +28,8 @@ public sealed class HudFeature : FeatureBase
 
         if (!string.IsNullOrEmpty(world.UsePrompt))
         {
-            Raylib.DrawText(world.UsePrompt, w / 2 - 80, h - 64, 20, Color.RayWhite);
+            var promptWidth = Raylib.MeasureText(world.UsePrompt, 20);
+            Raylib.DrawText(world.UsePrompt, w / 2 - promptWidth / 2, h - 64, 20, Color.RayWhite);
         }
 
         if (world.MissionPhase == MissionPhase.Won)
