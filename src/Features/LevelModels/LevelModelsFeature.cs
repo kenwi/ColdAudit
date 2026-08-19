@@ -3,7 +3,6 @@ using ColdAudit.Features.LevelLoad;
 using ColdAudit.Features.Physics;
 using ColdAudit.Shared.Assets;
 using ColdAudit.Shared.Contracts;
-using ColdAudit.Shared.Math;
 using ColdAudit.Shared.Rendering;
 using ColdAudit.Shared.World;
 using Raylib_cs;
@@ -22,7 +21,6 @@ public sealed class LevelModelsFeature : FeatureBase
     private readonly Dictionary<string, ModelHandle> _portalHandles = new(StringComparer.Ordinal);
     private readonly HashSet<string> _missingSectorIds = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _sectorIndexById = new(StringComparer.Ordinal);
-    private Camera3D _camera;
 
     private Mesh _surfaceMesh;
     private bool _surfaceMeshLoaded;
@@ -39,15 +37,6 @@ public sealed class LevelModelsFeature : FeatureBase
 
     public override void Load(GameWorld world, EventBus events)
     {
-        _camera = new Camera3D
-        {
-            Position = world.PlayerPosition,
-            Target = world.PlayerPosition + Vector3.UnitZ,
-            Up = Vector3.UnitY,
-            FovY = 70f,
-            Projection = CameraProjection.Perspective
-        };
-
         LoadPlaceholderSurfaces(world);
 
         var level = world.ActiveLevel;
@@ -94,11 +83,7 @@ public sealed class LevelModelsFeature : FeatureBase
             return;
         }
 
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        _camera.Position = world.PlayerPosition;
-        _camera.Target = world.PlayerPosition + forward;
-
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
 
         var sectors = world.ActiveLevel.Sectors;
         for (var i = 0; i < sectors.Count; i++)

@@ -52,5 +52,8 @@ public sealed class GameWorld
     /// </summary>
     public BasicLighting? Lighting { get; set; }
 
+    /// <summary>Shared player camera and per-frame draw flags.</summary>
+    public DrawContext Draw { get; } = new();
+
     public UiFramebuffer Ui { get; } = new();
 }

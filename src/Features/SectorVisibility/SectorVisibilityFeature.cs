@@ -20,7 +20,6 @@ public sealed class SectorVisibilityState
 /// </summary>
 public sealed class SectorVisibilityFeature : FeatureBase
 {
-    private const float CameraFovYDegrees = 70f;
     private const float CameraNear = 0.05f;
     private const float CameraFar = 250f;
     private const int MaxClipVerts = 32;
@@ -195,7 +194,7 @@ public sealed class SectorVisibilityFeature : FeatureBase
             eye,
             forward,
             Vector3.UnitY,
-            CameraFovYDegrees,
+            DrawContext.FovYDegrees,
             ResolveAspect(),
             CameraNear,
             CameraFar);

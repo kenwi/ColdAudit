@@ -87,6 +87,7 @@ public sealed class GameApp
     {
         // Order matters: input consumers first, visibility after movement, render/hud last.
         // Physics after LevelLoad (builds colliders); before PlayerController (capsule mover).
+        // WorldRender.Update syncs the shared player camera before 3D draws.
         // Physics debug draw sits with the level pass (after sectors, before prop meshes).
         var physics = new PhysicsFeature();
         _features.Add(new LevelLoadFeature());

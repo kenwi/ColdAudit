@@ -73,21 +73,11 @@ public sealed class DoorsAccessFeature : FeatureBase
 
     private readonly List<DoorState> _doors = [];
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
-    private Camera3D _camera;
 
     public IReadOnlyList<DoorState> Doors => _doors;
 
     public override void Load(GameWorld world, EventBus events)
     {
-        _camera = new Camera3D
-        {
-            Position = world.PlayerPosition,
-            Target = world.PlayerPosition + Vector3.UnitZ,
-            Up = Vector3.UnitY,
-            FovY = 70f,
-            Projection = CameraProjection.Perspective
-        };
-
         _doors.Clear();
         var level = world.ActiveLevel;
         if (level is null)
@@ -179,13 +169,9 @@ public sealed class DoorsAccessFeature : FeatureBase
             return;
         }
 
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        _camera.Position = world.PlayerPosition;
-        _camera.Target = world.PlayerPosition + forward;
-
         EnsureModelLighting(world);
 
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
 
         foreach (var door in _doors)
         {

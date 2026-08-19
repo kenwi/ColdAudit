@@ -1,7 +1,6 @@
 using System.Numerics;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
-using ColdAudit.Shared.Math;
 using ColdAudit.Shared.Rendering;
 using ColdAudit.Shared.World;
 using Raylib_cs;
@@ -14,19 +13,9 @@ namespace ColdAudit.Features.LevelProps;
 public sealed class LevelPropsFeature : FeatureBase
 {
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
-    private Camera3D _camera;
 
     public override void Load(GameWorld world, EventBus events)
     {
-        _camera = new Camera3D
-        {
-            Position = world.PlayerPosition,
-            Target = world.PlayerPosition + Vector3.UnitZ,
-            Up = Vector3.UnitY,
-            FovY = 70f,
-            Projection = CameraProjection.Perspective
-        };
-
         var level = world.ActiveLevel;
         if (level is null)
         {
@@ -65,11 +54,7 @@ public sealed class LevelPropsFeature : FeatureBase
             return;
         }
 
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        _camera.Position = world.PlayerPosition;
-        _camera.Target = world.PlayerPosition + forward;
-
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
 
         foreach (var placement in level.ModelPlacements)
         {

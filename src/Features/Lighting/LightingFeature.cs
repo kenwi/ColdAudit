@@ -1,7 +1,6 @@
 using System.Numerics;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
-using ColdAudit.Shared.Math;
 using ColdAudit.Shared.Rendering;
 using ColdAudit.Shared.World;
 using Raylib_cs;
@@ -17,19 +16,10 @@ public sealed class LightingFeature : FeatureBase
 
     private GameWorld? _world;
     private BasicLighting? _lighting;
-    private Camera3D _camera;
 
     public override void Load(GameWorld world, EventBus events)
     {
         _world = world;
-        _camera = new Camera3D
-        {
-            Position = world.PlayerPosition,
-            Target = world.PlayerPosition + Vector3.UnitZ,
-            Up = Vector3.UnitY,
-            FovY = 70f,
-            Projection = CameraProjection.Perspective
-        };
 
         _lighting = new BasicLighting();
         _lighting.Load();
@@ -61,11 +51,7 @@ public sealed class LightingFeature : FeatureBase
             return;
         }
 
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        _camera.Position = world.PlayerPosition;
-        _camera.Target = world.PlayerPosition + forward;
-
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
 
         foreach (var light in lighting.Lights)
         {

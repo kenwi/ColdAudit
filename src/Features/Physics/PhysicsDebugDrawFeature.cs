@@ -18,7 +18,6 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
     private static readonly Color TexturedWallTint = Color.White;
 
     private readonly PhysicsFeature _physics;
-    private Camera3D _camera;
     private Texture2D _wallTexture;
     private bool _wallTextureLoaded;
 
@@ -29,15 +28,6 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
 
     public override void Load(GameWorld world, EventBus events)
     {
-        _camera = new Camera3D
-        {
-            Position = world.PlayerPosition,
-            Target = world.PlayerPosition + Vector3.UnitZ,
-            Up = Vector3.UnitY,
-            FovY = 70f,
-            Projection = CameraProjection.Perspective
-        };
-
         var path = TextureCatalog.WallPlasterPath;
         if (File.Exists(path))
         {
@@ -77,8 +67,6 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             return;
         }
 
-        SyncCamera(world);
-
         List<Aabb>? cullVolumes = null;
         if (world.SectorCullEnabled && world.ActiveLevel is not null)
         {
@@ -87,7 +75,7 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
 
         var hasFloor = _physics.TryGetFloorBounds(out var floorBounds);
 
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
         foreach (var segment in snapshot.Segments)
         {
             var a = new Vector3((float)segment.A.X, (float)segment.A.Y, (float)segment.A.Z);
@@ -115,8 +103,6 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
             return;
         }
 
-        SyncCamera(world);
-
         List<Aabb>? cullVolumes = null;
         if (world.SectorCullEnabled && world.ActiveLevel is not null)
         {
@@ -125,7 +111,7 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
 
         var lighting = world.Lighting is { IsLoaded: true } lit ? lit : null;
 
-        Raylib.BeginMode3D(_camera);
+        Raylib.BeginMode3D(world.Draw.Camera);
         Raylib.BeginBlendMode(BlendMode.Alpha);
         var useLighting = lighting is not null && lighting.TryBeginShaderMode();
         foreach (var wall in _physics.DebugWalls)
@@ -224,13 +210,6 @@ public sealed class PhysicsDebugDrawFeature : FeatureBase
         Rlgl.TexCoord2f(uc, vc);
         Rlgl.Vertex3f(c.X, c.Y, c.Z);
         Rlgl.End();
-    }
-
-    private void SyncCamera(GameWorld world)
-    {
-        var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
-        _camera.Position = world.PlayerPosition;
-        _camera.Target = world.PlayerPosition + forward;
     }
 
     /// <summary>
