@@ -14,15 +14,18 @@ public sealed class LightingFeature : FeatureBase
 {
     private const float DebugSphereRadius = 0.25f;
     private const string CarPlacementId = "prop_old_car";
-    private const float CarLightRadius = 2.5f;
+    private const float CarLightRadius = 3.5f;
     private const float CarLightHeight = 1.2f;
     private const float CarLightOrbitDegreesPerSecond = 20f;
+    private const float CarLightHoverAmplitude = 0.7f;
+    private const float CarLightHoverDegreesPerSecond = 90f;
 
     private GameWorld? _world;
     private BasicLighting? _lighting;
     private readonly List<SceneLight> _carRingLights = [];
     private Vector3 _carLightCenter;
     private float _carLightOrbitDegrees;
+    private float _carLightHoverDegrees;
 
     public override void Load(GameWorld world, EventBus events)
     {
@@ -86,6 +89,7 @@ public sealed class LightingFeature : FeatureBase
         _lighting = null;
         _carRingLights.Clear();
         _carLightOrbitDegrees = 0f;
+        _carLightHoverDegrees = 0f;
         _world = null;
     }
 
@@ -107,7 +111,7 @@ public sealed class LightingFeature : FeatureBase
         for (var i = 0; i < ring.Length; i++)
         {
             var light = _lighting!.AddPointLight(
-                CarRingPosition(i, ring.Length, 0f),
+                CarRingPosition(i, ring.Length, 0f, 0f),
                 ring[i].Color,
                 ring[i].Intensity);
             if (light is not null)
@@ -125,21 +129,25 @@ public sealed class LightingFeature : FeatureBase
         }
 
         _carLightOrbitDegrees += dt * CarLightOrbitDegreesPerSecond;
+        _carLightHoverDegrees += dt * CarLightHoverDegreesPerSecond;
         var count = _carRingLights.Count;
         for (var i = 0; i < count; i++)
         {
             var light = _carRingLights[i];
-            light.Position = CarRingPosition(i, count, _carLightOrbitDegrees);
+            light.Position = CarRingPosition(i, count, _carLightOrbitDegrees, _carLightHoverDegrees);
             _lighting.UpdateLight(light);
         }
     }
 
-    private Vector3 CarRingPosition(int index, int count, float orbitDegrees)
+    private Vector3 CarRingPosition(int index, int count, float orbitDegrees, float hoverDegrees)
     {
-        var angle = (orbitDegrees + index * (360f / count)) * MathF.PI / 180f;
+        var step = 360f / count;
+        var angle = (orbitDegrees + index * step) * MathF.PI / 180f;
+        var hover = (hoverDegrees + index * step) * MathF.PI / 180f;
+        var height = CarLightHeight + CarLightHoverAmplitude * MathF.Sin(hover);
         return _carLightCenter + new Vector3(
             MathF.Cos(angle) * CarLightRadius,
-            CarLightHeight,
+            height,
             MathF.Sin(angle) * CarLightRadius);
     }
 
