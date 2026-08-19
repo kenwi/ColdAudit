@@ -27,6 +27,12 @@ public sealed class ModelPlacementDef
     public string SectorId { get; init; } = string.Empty;
     public Vector3 Position { get; init; }
     public float YawDegrees { get; init; }
+
+    /// <summary>
+    /// Extra yaw in degrees per second (YawDegrees + speed * elapsed time).
+    /// </summary>
+    public float YawSpeedDegrees { get; init; }
+
     public float Scale { get; init; } = 1f;
 
     /// <summary>
@@ -35,7 +41,29 @@ public sealed class ModelPlacementDef
     /// </summary>
     public string? CollisionMeshPath { get; init; }
 
+    /// <summary>
+    /// Optional PBR maps bound after load (albedo / packed MRA / normal / emissive).
+    /// </summary>
+    public ModelPbrMapsDef? PbrMaps { get; init; }
+
     public bool HasCollisionMesh => !string.IsNullOrWhiteSpace(CollisionMeshPath);
+    public bool HasPbrMaps => PbrMaps is not null;
+}
+
+/// <summary>
+/// Sidecar PBR textures and scalar overrides for a placed model.
+/// MRA is packed metallic (R), roughness (G), ambient occlusion (B).
+/// </summary>
+public sealed class ModelPbrMapsDef
+{
+    public string? AlbedoPath { get; init; }
+    public string? MraPath { get; init; }
+    public string? NormalPath { get; init; }
+    public string? EmissivePath { get; init; }
+    public float Metallic { get; init; }
+    public float Roughness { get; init; }
+    public float EmissivePower { get; init; }
+    public Vector3 EmissiveColor { get; init; }
 }
 
 public sealed class SectorDef

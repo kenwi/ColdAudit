@@ -121,6 +121,29 @@ public sealed class LevelLoadFeature : FeatureBase
             ClosedYawDegrees = 0f,
             Locked = false
         });
+        // Raylib basic PBR example car, in front of spawn (looking -Z).
+        var carPath = ModelCatalog.OldCarGlbPath;
+        level.ModelPlacements.Add(new ModelPlacementDef
+        {
+            Id = "prop_old_car",
+            ModelPath = carPath,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0f, 0f, -8f),
+            YawDegrees = 90f,
+            Scale = 0.25f,
+            PbrMaps = new ModelPbrMapsDef
+            {
+                AlbedoPath = ModelCatalog.OldCarAlbedoPath,
+                MraPath = ModelCatalog.OldCarMraPath,
+                NormalPath = ModelCatalog.OldCarNormalPath,
+                EmissivePath = ModelCatalog.OldCarEmissivePath,
+                Metallic = 1f,
+                Roughness = 0f,
+                EmissivePower = 0.01f,
+                EmissiveColor = new System.Numerics.Vector3(1f, 162f / 255f, 0f)
+            }
+        });
+
         level.Doors.Add(new DoorDef
         {
             Id = "door_a_b",

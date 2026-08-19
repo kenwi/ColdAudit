@@ -2,6 +2,7 @@ using System.Numerics;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Rendering;
+using ColdAudit.Shared.Time;
 using ColdAudit.Shared.World;
 using Raylib_cs;
 
@@ -13,6 +14,7 @@ namespace ColdAudit.Features.LevelProps;
 public sealed class LevelPropsFeature : FeatureBase
 {
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, BoundPbrMaps> _pbrMapsByPath = new(StringComparer.Ordinal);
 
     public override void Load(GameWorld world, EventBus events)
     {
@@ -42,6 +44,15 @@ public sealed class LevelPropsFeature : FeatureBase
             var handle = new ModelHandle();
             handle.Load(placement.ModelPath);
             world.Lighting?.ApplyToModel(handle);
+            if (placement.PbrMaps is not null)
+            {
+                var bound = BindPlacementPbrMaps(world, handle, placement.PbrMaps);
+                if (bound is not null)
+                {
+                    _pbrMapsByPath[placement.ModelPath] = bound;
+                }
+            }
+
             _handlesByPath[placement.ModelPath] = handle;
         }
     }
@@ -68,14 +79,35 @@ public sealed class LevelPropsFeature : FeatureBase
                 continue;
             }
 
+            var appliedPbr = false;
+            if (world.Lighting is { IsLoaded: true } lighting &&
+                _pbrMapsByPath.TryGetValue(placement.ModelPath, out var pbrMaps))
+            {
+                lighting.ApplyPbrDrawParams(
+                    pbrMaps.HasNormal,
+                    pbrMaps.HasMra,
+                    pbrMaps.HasEmissive,
+                    pbrMaps.Maps.Metallic,
+                    pbrMaps.Maps.Roughness,
+                    pbrMaps.Maps.EmissivePower,
+                    pbrMaps.Maps.EmissiveColor);
+                appliedPbr = true;
+            }
+
             var scale = placement.Scale;
+            var yaw = placement.YawDegrees + FrameTime.Total * placement.YawSpeedDegrees;
             Raylib.DrawModelEx(
                 handle.Model,
                 placement.Position,
                 Vector3.UnitY,
-                placement.YawDegrees,
+                yaw,
                 new Vector3(scale, scale, scale),
                 Color.White);
+
+            if (appliedPbr)
+            {
+                world.Lighting!.RestorePbrDrawDefaults();
+            }
         }
 
         Raylib.EndMode3D();
@@ -91,6 +123,38 @@ public sealed class LevelPropsFeature : FeatureBase
         }
 
         _handlesByPath.Clear();
+        _pbrMapsByPath.Clear();
+    }
+
+    private static BoundPbrMaps? BindPlacementPbrMaps(GameWorld world, ModelHandle handle, ModelPbrMapsDef maps)
+    {
+        if (world.Lighting is not { IsLoaded: true } lighting)
+        {
+            return null;
+        }
+
+        var albedo = TryLoadMap(maps.AlbedoPath);
+        var mra = TryLoadMap(maps.MraPath);
+        var normal = TryLoadMap(maps.NormalPath);
+        var emissive = TryLoadMap(maps.EmissivePath);
+        lighting.BindPbrMaps(handle, albedo, mra, normal, emissive);
+        return new BoundPbrMaps
+        {
+            Maps = maps,
+            HasMra = mra.Id != 0,
+            HasNormal = normal.Id != 0,
+            HasEmissive = emissive.Id != 0
+        };
+    }
+
+    private static Texture2D TryLoadMap(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return default;
+        }
+
+        return Raylib.LoadTexture(path);
     }
 
     private static bool IsPlacementDrawn(GameWorld world, ModelPlacementDef placement)
@@ -106,5 +170,13 @@ public sealed class LevelPropsFeature : FeatureBase
         }
 
         return world.VisibleSectorIds.Contains(placement.SectorId);
+    }
+
+    private sealed class BoundPbrMaps
+    {
+        public required ModelPbrMapsDef Maps { get; init; }
+        public bool HasMra { get; init; }
+        public bool HasNormal { get; init; }
+        public bool HasEmissive { get; init; }
     }
 }

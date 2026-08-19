@@ -48,7 +48,7 @@ public sealed class GameWorld
     public LevelData? ActiveLevel { get; set; }
 
     /// <summary>
-    /// Shared basic lighting shader/lights used by 3D model drawers.
+    /// Shared PBR lighting shader/lights used by 3D model drawers.
     /// </summary>
     public BasicLighting? Lighting { get; set; }
 
