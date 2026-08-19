@@ -23,6 +23,7 @@ public sealed class DoorState
     public bool Locked { get; set; }
     public bool IsOpen { get; set; }
     public float OpenAmount { get; set; }
+    public float LockDeniedTime { get; set; }
 
     /// <summary>+1 / -1. Chosen when opening so the slab swings away from the player.</summary>
     public float SwingSign { get; set; } = 1f;
@@ -35,19 +36,24 @@ public sealed class DoorState
     {
         get
         {
+            if (LockDeniedTime > 0f)
+            {
+                return "Cannot open: locked";
+            }
+
             if (Locked)
             {
-                return "Door: Locked";
+                return "Door: Locked  [U] Unlock";
             }
 
             if (OpenAmount < 0.01f && !IsOpen)
             {
-                return "Door: Closed  [E] Open";
+                return "Door: Closed  [E] Open  [L] Lock";
             }
 
             if (OpenAmount > 0.99f && IsOpen)
             {
-                return "Door: Open  [E] Close";
+                return "Door: Open  [E] Close  [L] Lock";
             }
 
             return IsOpen
@@ -60,6 +66,7 @@ public sealed class DoorState
 public sealed class DoorsAccessFeature : FeatureBase
 {
     private const float OpenSpeed = 2f;
+    private const float LockDeniedDuration = 1.75f;
     private static readonly Color DoorFill = new(118, 82, 48, 255);
     private static readonly Color DoorFillFocused = new(168, 124, 72, 255);
     private static readonly Color DoorWire = new(42, 28, 16, 255);
@@ -111,11 +118,38 @@ public sealed class DoorsAccessFeature : FeatureBase
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
+        if (world.FocusedInteractableId is { } focusedId)
+        {
+            var focused = Find(focusedId);
+            if (focused is not null)
+            {
+                if (input.UnlockPressed)
+                {
+                    focused.Locked = false;
+                    focused.LockDeniedTime = 0f;
+                }
+
+                if (input.LockPressed)
+                {
+                    focused.Locked = true;
+                }
+
+                world.UsePrompt = focused.Prompt;
+            }
+        }
+
         foreach (var use in events.OfType<UseRequested>())
         {
             var door = Find(use.InteractableId);
-            if (door is null || door.Locked)
+            if (door is null)
             {
+                continue;
+            }
+
+            if (door.Locked && !door.IsOpen)
+            {
+                door.LockDeniedTime = LockDeniedDuration;
+                world.UsePrompt = door.Prompt;
                 continue;
             }
 
@@ -128,6 +162,11 @@ public sealed class DoorsAccessFeature : FeatureBase
 
         foreach (var door in _doors)
         {
+            if (door.LockDeniedTime > 0f)
+            {
+                door.LockDeniedTime = MathF.Max(0f, door.LockDeniedTime - dt);
+            }
+
             var target = door.IsOpen ? 1f : 0f;
             door.OpenAmount = MathUtil.MoveTowards(door.OpenAmount, target, OpenSpeed * dt);
         }

@@ -8,6 +8,8 @@ public sealed class InputState
     public Vector2 MoveAxes { get; private set; }
     public Vector2 LookDelta { get; private set; }
     public bool UsePressed { get; private set; }
+    public bool UnlockPressed { get; private set; }
+    public bool LockPressed { get; private set; }
     public bool CrouchHeld { get; private set; }
     public bool ToggleDebugPressed { get; private set; }
     public bool ToggleSectorCullPressed { get; private set; }
@@ -31,6 +33,8 @@ public sealed class InputState
         MoveAxes = move;
         LookDelta = Raylib.GetMouseDelta();
         UsePressed = Raylib.IsKeyPressed(InputMap.Use) || Raylib.IsKeyPressed(KeyboardKey.F);
+        UnlockPressed = Raylib.IsKeyPressed(InputMap.Unlock);
+        LockPressed = Raylib.IsKeyPressed(InputMap.Lock);
         CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch) || Raylib.IsKeyDown(KeyboardKey.C);
         ToggleDebugPressed = Raylib.IsKeyPressed(InputMap.DebugToggle);
         ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
