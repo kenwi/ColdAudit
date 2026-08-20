@@ -50,7 +50,24 @@ public sealed class LightingFeature : FeatureBase
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
     {
-        world.Lighting?.UpdateViewPosition(world.PlayerPosition);
+        if (input.TogglePbrTexturesPressed)
+        {
+            world.PbrTexturesEnabled = !world.PbrTexturesEnabled;
+        }
+
+        if (input.ToggleLightingPressed)
+        {
+            world.LightingEnabled = !world.LightingEnabled;
+        }
+
+        if (world.Lighting is not { IsLoaded: true } lighting)
+        {
+            return;
+        }
+
+        lighting.SetPbrTexturesEnabled(world.PbrTexturesEnabled);
+        lighting.SetLightingEnabled(world.LightingEnabled);
+        lighting.UpdateViewPosition(world.PlayerPosition);
         OrbitCarRingLights(dt);
     }
 

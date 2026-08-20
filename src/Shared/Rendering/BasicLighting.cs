@@ -27,6 +27,8 @@ public sealed class BasicLighting : IDisposable
     private int _useTexMRALoc = -1;
     private int _useTexEmissiveLoc = -1;
     private readonly List<SceneLight> _lights = [];
+    private bool _lightingEnabled = true;
+    private bool _pbrTexturesEnabled = true;
 
     public bool IsLoaded { get; private set; }
     public IReadOnlyList<SceneLight> Lights => _lights;
@@ -71,7 +73,7 @@ public sealed class BasicLighting : IDisposable
             return;
         }
 
-        Raylib.SetShaderValue(_shader, light.EnabledLoc, light.Enabled ? 1 : 0, ShaderUniformDataType.Int);
+        PushLightEnabled(light);
         Raylib.SetShaderValue(_shader, light.TypeLoc, (int)light.Type, ShaderUniformDataType.Int);
         Raylib.SetShaderValue(_shader, light.PositionLoc, light.Position, ShaderUniformDataType.Vec3);
         Raylib.SetShaderValue(_shader, light.TargetLoc, light.Target, ShaderUniformDataType.Vec3);
@@ -93,6 +95,37 @@ public sealed class BasicLighting : IDisposable
         }
 
         Raylib.SetShaderValue(_shader, _viewPosLoc, cameraPosition, ShaderUniformDataType.Vec3);
+    }
+
+    /// <summary>
+    /// Enable or disable dynamic lights without changing per-light <see cref="SceneLight.Enabled"/>.
+    /// </summary>
+    public void SetLightingEnabled(bool enabled)
+    {
+        _lightingEnabled = enabled;
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        foreach (var light in _lights)
+        {
+            PushLightEnabled(light);
+        }
+    }
+
+    /// <summary>
+    /// Enable or disable PBR map sampling (albedo, normal, MRA, emissive).
+    /// </summary>
+    public void SetPbrTexturesEnabled(bool enabled)
+    {
+        _pbrTexturesEnabled = enabled;
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        PushTextureUsage(useNormal: false, useMra: false, useEmissive: false);
     }
 
     /// <summary>
@@ -212,9 +245,7 @@ public sealed class BasicLighting : IDisposable
             return;
         }
 
-        Raylib.SetShaderValue(_shader, _useTexNormalLoc, useNormal ? 1 : 0, ShaderUniformDataType.Int);
-        Raylib.SetShaderValue(_shader, _useTexMRALoc, useMra ? 1 : 0, ShaderUniformDataType.Int);
-        Raylib.SetShaderValue(_shader, _useTexEmissiveLoc, useEmissive ? 1 : 0, ShaderUniformDataType.Int);
+        PushTextureUsage(useNormal, useMra, useEmissive);
         Raylib.SetShaderValue(_shader, _metallicValueLoc, metallic, ShaderUniformDataType.Float);
         Raylib.SetShaderValue(_shader, _roughnessValueLoc, roughness, ShaderUniformDataType.Float);
         Raylib.SetShaderValue(_shader, _emissivePowerLoc, emissivePower, ShaderUniformDataType.Float);
@@ -319,10 +350,7 @@ public sealed class BasicLighting : IDisposable
         // Stock pbr.vs doubles UVs; tiling 0.5 restores authored texcoords 1:1.
         Raylib.SetShaderValue(_shader, _tilingLoc, new Vector2(0.5f, 0.5f), ShaderUniformDataType.Vec2);
 
-        Raylib.SetShaderValue(_shader, _useTexAlbedoLoc, 1, ShaderUniformDataType.Int);
-        Raylib.SetShaderValue(_shader, _useTexNormalLoc, 0, ShaderUniformDataType.Int);
-        Raylib.SetShaderValue(_shader, _useTexMRALoc, 0, ShaderUniformDataType.Int);
-        Raylib.SetShaderValue(_shader, _useTexEmissiveLoc, 0, ShaderUniformDataType.Int);
+        PushTextureUsage(useNormal: false, useMra: false, useEmissive: false);
 
         Raylib.SetShaderValue(_shader, _metallicValueLoc, 0f, ShaderUniformDataType.Float);
         Raylib.SetShaderValue(_shader, _roughnessValueLoc, 0.5f, ShaderUniformDataType.Float);
@@ -342,6 +370,24 @@ public sealed class BasicLighting : IDisposable
             Id = Rlgl.GetShaderIdDefault(),
             Locs = Rlgl.GetShaderLocsDefault()
         };
+
+    private void PushLightEnabled(SceneLight light)
+    {
+        Raylib.SetShaderValue(
+            _shader,
+            light.EnabledLoc,
+            _lightingEnabled && light.Enabled ? 1 : 0,
+            ShaderUniformDataType.Int);
+    }
+
+    private void PushTextureUsage(bool useNormal, bool useMra, bool useEmissive)
+    {
+        var maps = _pbrTexturesEnabled;
+        Raylib.SetShaderValue(_shader, _useTexAlbedoLoc, maps ? 1 : 0, ShaderUniformDataType.Int);
+        Raylib.SetShaderValue(_shader, _useTexNormalLoc, maps && useNormal ? 1 : 0, ShaderUniformDataType.Int);
+        Raylib.SetShaderValue(_shader, _useTexMRALoc, maps && useMra ? 1 : 0, ShaderUniformDataType.Int);
+        Raylib.SetShaderValue(_shader, _useTexEmissiveLoc, maps && useEmissive ? 1 : 0, ShaderUniformDataType.Int);
+    }
 
     private SceneLight? AddLight(LightType type, Vector3 position, Vector3 target, Color color, float intensity)
     {

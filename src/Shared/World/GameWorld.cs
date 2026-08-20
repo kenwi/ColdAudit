@@ -45,6 +45,12 @@ public sealed class GameWorld
     /// </summary>
     public bool SectorCullEnabled { get; set; } = true;
 
+    /// <summary>F3. When false, PBR map sampling (albedo / normal / MRA / emissive) is skipped.</summary>
+    public bool PbrTexturesEnabled { get; set; } = true;
+
+    /// <summary>F4. When false, dynamic lights are disabled (ambient remains).</summary>
+    public bool LightingEnabled { get; set; } = true;
+
     public LevelData? ActiveLevel { get; set; }
 
     /// <summary>

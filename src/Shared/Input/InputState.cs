@@ -13,6 +13,8 @@ public sealed class InputState
     public bool CrouchHeld { get; private set; }
     public bool ToggleDebugPressed { get; private set; }
     public bool ToggleSectorCullPressed { get; private set; }
+    public bool TogglePbrTexturesPressed { get; private set; }
+    public bool ToggleLightingPressed { get; private set; }
     public bool ToggleFullscreenPressed { get; private set; }
 
     public void Sample()
@@ -38,6 +40,8 @@ public sealed class InputState
         CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch) || Raylib.IsKeyDown(KeyboardKey.C);
         ToggleDebugPressed = Raylib.IsKeyPressed(InputMap.DebugToggle);
         ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
+        TogglePbrTexturesPressed = Raylib.IsKeyPressed(InputMap.PbrTexturesToggle);
+        ToggleLightingPressed = Raylib.IsKeyPressed(InputMap.LightingToggle);
         ToggleFullscreenPressed = Raylib.IsKeyPressed(InputMap.FullscreenToggle);
     }
 }

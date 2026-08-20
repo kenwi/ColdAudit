@@ -83,10 +83,13 @@ public sealed class DebugOverlayFeature : FeatureBase
         y += 18;
         Raylib.DrawText($"fps: {Raylib.GetFPS()}  debug: {DebugModeLabel(world.DebugDraw)} (F1)", 12, y, 14, Color.Lime);
         y += 18;
-        var lighting = world.Lighting is { IsLoaded: true } lightingState
-            ? $"ON lights={lightingState.Lights.Count}"
+        var pbrTextures = world.PbrTexturesEnabled ? "ON" : "OFF";
+        Raylib.DrawText($"pbr textures: {pbrTextures}  (F3)", 12, y, 14, Color.Lime);
+        y += 18;
+        var lighting = world.Lighting is { IsLoaded: true } && world.LightingEnabled
+            ? $"ON lights={world.Lighting.Lights.Count}"
             : "OFF";
-        Raylib.DrawText($"lighting: {lighting}", 12, y, 14, Color.Lime);
+        Raylib.DrawText($"lighting: {lighting}  (F4)", 12, y, 14, Color.Lime);
         y += 18;
         var fullscreen = Raylib.IsWindowFullscreen() ? "ON" : "OFF";
         Raylib.DrawText($"fullscreen: {fullscreen}  (F11)", 12, y, 14, Color.Lime);

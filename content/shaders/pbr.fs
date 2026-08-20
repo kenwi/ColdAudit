@@ -82,8 +82,12 @@ float GeomSmith(float nDotV,float nDotL,float roughness)
 
 vec3 ComputePBR()
 {
-    vec3 albedo = texture(albedoMap,vec2(fragTexCoord.x*tiling.x + offset.x, fragTexCoord.y*tiling.y + offset.y)).rgb;
-    albedo = vec3(albedoColor.x*albedo.x, albedoColor.y*albedo.y, albedoColor.z*albedo.z);
+    vec3 albedo = albedoColor.rgb;
+    if (useTexAlbedo == 1)
+    {
+        vec3 albedoTex = texture(albedoMap, vec2(fragTexCoord.x*tiling.x + offset.x, fragTexCoord.y*tiling.y + offset.y)).rgb;
+        albedo *= albedoTex;
+    }
 
     float metallic = clamp(metallicValue, 0.0, 1.0);
     float roughness = clamp(roughnessValue, 0.0, 1.0);
