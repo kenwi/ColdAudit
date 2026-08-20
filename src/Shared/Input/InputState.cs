@@ -15,6 +15,8 @@ public sealed class InputState
     public bool ToggleSectorCullPressed { get; private set; }
     public bool TogglePbrTexturesPressed { get; private set; }
     public bool ToggleLightingPressed { get; private set; }
+    public bool ToggleLightVolumesPressed { get; private set; }
+    public bool ToggleShadowsPressed { get; private set; }
     public bool ToggleFullscreenPressed { get; private set; }
 
     public void Sample()
@@ -42,6 +44,8 @@ public sealed class InputState
         ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
         TogglePbrTexturesPressed = Raylib.IsKeyPressed(InputMap.PbrTexturesToggle);
         ToggleLightingPressed = Raylib.IsKeyPressed(InputMap.LightingToggle);
+        ToggleLightVolumesPressed = Raylib.IsKeyPressed(InputMap.LightVolumeToggle);
+        ToggleShadowsPressed = Raylib.IsKeyPressed(InputMap.ShadowsToggle);
         ToggleFullscreenPressed = Raylib.IsKeyPressed(InputMap.FullscreenToggle);
     }
 }

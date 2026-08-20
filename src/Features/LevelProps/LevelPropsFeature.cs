@@ -1,6 +1,7 @@
 using System.Numerics;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
+using ColdAudit.Shared.Input;
 using ColdAudit.Shared.Rendering;
 using ColdAudit.Shared.Time;
 using ColdAudit.Shared.World;
@@ -11,7 +12,7 @@ namespace ColdAudit.Features.LevelProps;
 /// <summary>
 /// Loads and draws positioned model assets declared on the active level.
 /// </summary>
-public sealed class LevelPropsFeature : FeatureBase
+public sealed class LevelPropsFeature : FeatureBase, IShadowCaster
 {
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BoundPbrMaps> _pbrMapsByPath = new(StringComparer.Ordinal);
@@ -54,6 +55,25 @@ public sealed class LevelPropsFeature : FeatureBase
             }
 
             _handlesByPath[placement.ModelPath] = handle;
+        }
+    }
+
+    public override void Update(float dt, GameWorld world, InputState input, EventBus events)
+    {
+        var level = world.ActiveLevel;
+        if (level is null)
+        {
+            return;
+        }
+
+        foreach (var placement in level.ModelPlacements)
+        {
+            if (placement.YawSpeedDegrees != 0f)
+            {
+                // Spinning props keep moving, so their shadows can never be cached.
+                world.InvalidateShadowGeometry();
+                return;
+            }
         }
     }
 
@@ -111,6 +131,31 @@ public sealed class LevelPropsFeature : FeatureBase
         }
 
         Raylib.EndMode3D();
+    }
+
+    public void DrawDepth(GameWorld world, ShadowPass pass)
+    {
+        var level = world.ActiveLevel;
+        if (level is null)
+        {
+            return;
+        }
+
+        foreach (var placement in level.ModelPlacements)
+        {
+            if (!pass.IncludesSector(placement.SectorId))
+            {
+                continue;
+            }
+
+            if (!_handlesByPath.TryGetValue(placement.ModelPath, out var handle) || !handle.IsLoaded)
+            {
+                continue;
+            }
+
+            var yaw = placement.YawDegrees + FrameTime.Total * placement.YawSpeedDegrees;
+            pass.DrawModel(handle.Model, placement.Position, yaw, placement.Scale);
+        }
     }
 
     public override void Unload()

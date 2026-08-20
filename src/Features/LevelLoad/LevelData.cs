@@ -1,5 +1,6 @@
 using System.Numerics;
 using ColdAudit.Shared.Math;
+using Raylib_cs;
 
 namespace ColdAudit.Features.LevelLoad;
 
@@ -13,6 +14,42 @@ public sealed class LevelData
     public List<InteractableDef> Interactables { get; } = [];
     public List<ModelPlacementDef> ModelPlacements { get; } = [];
     public List<DoorDef> Doors { get; } = [];
+    public List<LightDef> Lights { get; } = [];
+}
+
+/// <summary>
+/// An authored point light. <see cref="SectorId"/> is the room the light lives in and
+/// drives portal-based light occlusion, so it must name a real sector.
+/// </summary>
+public sealed class LightDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string SectorId { get; init; } = string.Empty;
+    public Vector3 Position { get; init; }
+    public Color Color { get; init; } = Color.White;
+    public float Intensity { get; init; } = 1f;
+
+    /// <summary>
+    /// Optional animation: orbit a <see cref="ModelPlacementDef.Id"/> instead of holding
+    /// <see cref="Position"/>. Null/empty keeps the light static.
+    /// </summary>
+    public string? AnchorPlacementId { get; init; }
+
+    /// <summary>Orbit radius in metres around the anchor. Zero keeps the light on the anchor.</summary>
+    public float OrbitRadius { get; init; }
+
+    public float OrbitDegreesPerSecond { get; init; }
+
+    /// <summary>Starting angle so several lights can share one anchor without overlapping.</summary>
+    public float OrbitPhaseDegrees { get; init; }
+
+    /// <summary>Height above the anchor origin before hover is applied.</summary>
+    public float OrbitHeight { get; init; }
+
+    public float HoverAmplitude { get; init; }
+    public float HoverDegreesPerSecond { get; init; }
+
+    public bool HasAnchor => !string.IsNullOrWhiteSpace(AnchorPlacementId);
 }
 
 /// <summary>

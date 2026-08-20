@@ -9,7 +9,7 @@ using Raylib_cs;
 
 namespace ColdAudit.Features.LevelModels;
 
-public sealed class LevelModelsFeature : FeatureBase
+public sealed class LevelModelsFeature : FeatureBase, IShadowCaster
 {
     private const float SurfaceUvTiles = 4f;
     private const int SurfaceMeshSlices = 16;
@@ -111,6 +111,57 @@ public sealed class LevelModelsFeature : FeatureBase
         DrawPortals(world, world.ActiveLevel);
 
         Raylib.EndMode3D();
+    }
+
+    /// <summary>
+    /// Sector and portal shells are the main light blockers: without them every light would
+    /// shine straight through the walls.
+    /// </summary>
+    public void DrawDepth(GameWorld world, ShadowPass pass)
+    {
+        var level = world.ActiveLevel;
+        if (level is null)
+        {
+            return;
+        }
+
+        var sectors = level.Sectors;
+        for (var i = 0; i < sectors.Count; i++)
+        {
+            var sector = sectors[i];
+            if (!sector.RenderEnabled || !pass.IncludesSector(sector.Id))
+            {
+                continue;
+            }
+
+            if (_handles.TryGetValue(sector.Id, out var handle) && handle.IsLoaded)
+            {
+                pass.DrawModel(handle.Model);
+                continue;
+            }
+
+            if (_missingSectorIds.Contains(sector.Id) && _surfaceMeshLoaded)
+            {
+                var origin = DebugSectorLayout.Origin(i);
+                pass.DrawMesh(_surfaceMesh, Raymath.MatrixTranslate(origin.X, origin.Y, origin.Z));
+                pass.DrawMesh(
+                    _surfaceMesh,
+                    Raymath.MatrixTranslate(origin.X, origin.Y + LevelCollisionBuilder.WallHeight, origin.Z));
+            }
+        }
+
+        foreach (var portal in level.Portals)
+        {
+            if (!pass.IncludesSector(portal.FromSectorId) && !pass.IncludesSector(portal.ToSectorId))
+            {
+                continue;
+            }
+
+            if (_portalHandles.TryGetValue(portal.Id, out var handle) && handle.IsLoaded)
+            {
+                pass.DrawModel(handle.Model);
+            }
+        }
     }
 
     public override void Unload()

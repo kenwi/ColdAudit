@@ -51,7 +51,30 @@ public sealed class GameWorld
     /// <summary>F4. When false, dynamic lights are disabled (ambient remains).</summary>
     public bool LightingEnabled { get; set; } = true;
 
+    /// <summary>
+    /// F5. When false, lights ignore walls and portals again (they illuminate the whole
+    /// level, as before portal light occlusion existed).
+    /// </summary>
+    public bool LightVolumeMaskEnabled { get; set; } = true;
+
+    /// <summary>F6. When false, meshes stop casting shadows (portal volumes still apply).</summary>
+    public bool ShadowsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Bumped by any feature whose shadow-casting geometry moved this frame (doors swinging,
+    /// spinning props, sector meshes toggled). Cached shadow cubes rebuild when it changes.
+    /// </summary>
+    public int ShadowGeometryRevision { get; private set; }
+
+    public void InvalidateShadowGeometry() => ShadowGeometryRevision++;
+
     public LevelData? ActiveLevel { get; set; }
+
+    /// <summary>
+    /// Sector volumes and portal adjacency resolved from <see cref="ActiveLevel"/>.
+    /// Rebuilt by <c>LevelLoadFeature</c> whenever the active level changes.
+    /// </summary>
+    public SectorGraph Sectors { get; } = new();
 
     /// <summary>
     /// Shared PBR lighting shader/lights used by 3D model drawers.

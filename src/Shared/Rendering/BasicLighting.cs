@@ -12,6 +12,13 @@ public sealed class BasicLighting : IDisposable
 {
     public const int MaxLights = 4;
 
+    private const int MaxVolumes = MaxLights * LightVolumeSet.MaxVolumes;
+    private const int MaxVolumePlanes = MaxVolumes * LightVolume.MaxPlanes;
+
+    private readonly int[] _lightVolumeCounts = new int[MaxLights];
+    private readonly int[] _volumePlaneCounts = new int[MaxVolumes];
+    private readonly Vector4[] _volumePlanes = new Vector4[MaxVolumePlanes];
+
     private Shader _shader;
     private int _viewPosLoc = -1;
     private int _ambientLoc = -1;
@@ -26,6 +33,14 @@ public sealed class BasicLighting : IDisposable
     private int _useTexNormalLoc = -1;
     private int _useTexMRALoc = -1;
     private int _useTexEmissiveLoc = -1;
+    private int _lightVolumeCountLoc = -1;
+    private int _volumePlaneCountLoc = -1;
+    private int _volumePlanesLoc = -1;
+    private int _shadowEnabledLoc = -1;
+    private int _shadowFarPlaneLoc = -1;
+    private int _shadowTexelLoc = -1;
+    private readonly int[] _shadowCubeLocs = new int[MaxLights];
+    private readonly int[] _shadowEnabled = new int[MaxLights];
     private readonly List<SceneLight> _lights = [];
     private bool _lightingEnabled = true;
     private bool _pbrTexturesEnabled = true;
@@ -54,16 +69,30 @@ public sealed class BasicLighting : IDisposable
         SetPbrDefaults();
 
         IsLoaded = true;
+
+        // Start unmasked; LightVisibilityFeature pushes real volumes once per frame.
+        // Deliberately not part of SetPbrDefaults, which per-prop draws call to restore
+        // scalar overrides and would otherwise wipe the mask mid-frame.
+        PushLightVolumes();
     }
 
-    public SceneLight? AddDirectionalLight(Vector3 position, Vector3 target, Color color, float intensity = 1f)
+    public SceneLight? AddDirectionalLight(
+        Vector3 position,
+        Vector3 target,
+        Color color,
+        float intensity = 1f,
+        string sectorId = "")
     {
-        return AddLight(LightType.Directional, position, target, color, intensity);
+        return AddLight(LightType.Directional, position, target, color, intensity, sectorId);
     }
 
-    public SceneLight? AddPointLight(Vector3 position, Color color, float intensity = 1f)
+    public SceneLight? AddPointLight(
+        Vector3 position,
+        Color color,
+        float intensity = 1f,
+        string sectorId = "")
     {
-        return AddLight(LightType.Point, position, Vector3.Zero, color, intensity);
+        return AddLight(LightType.Point, position, Vector3.Zero, color, intensity, sectorId);
     }
 
     public void UpdateLight(SceneLight light)
@@ -85,6 +114,112 @@ public sealed class BasicLighting : IDisposable
             light.Color.A / 255f);
         Raylib.SetShaderValue(_shader, light.ColorLoc, color, ShaderUniformDataType.Vec4);
         Raylib.SetShaderValue(_shader, light.IntensityLoc, light.Intensity, ShaderUniformDataType.Float);
+    }
+
+    /// <summary>
+    /// Upload the portal-derived volumes each light is allowed to illuminate, indexed to
+    /// match <see cref="Lights"/>. A light with zero volumes stays unmasked.
+    /// </summary>
+    public void SetLightVolumes(IReadOnlyList<LightVolumeSet> volumeSets)
+    {
+        if (!IsLoaded || _lightVolumeCountLoc < 0)
+        {
+            return;
+        }
+
+        Array.Clear(_lightVolumeCounts);
+        Array.Clear(_volumePlaneCounts);
+
+        var lightCount = System.Math.Min(volumeSets.Count, MaxLights);
+        for (var li = 0; li < lightCount; li++)
+        {
+            var set = volumeSets[li];
+            var volumeCount = System.Math.Min(set.VolumeCount, LightVolumeSet.MaxVolumes);
+            _lightVolumeCounts[li] = volumeCount;
+
+            for (var vi = 0; vi < volumeCount; vi++)
+            {
+                var volume = set[vi];
+                var slot = li * LightVolumeSet.MaxVolumes + vi;
+                _volumePlaneCounts[slot] = volume.PlaneCount;
+
+                var planes = volume.Planes;
+                for (var pi = 0; pi < planes.Length; pi++)
+                {
+                    _volumePlanes[slot * LightVolume.MaxPlanes + pi] = planes[pi];
+                }
+            }
+        }
+
+        PushLightVolumes();
+    }
+
+    /// <summary>
+    /// Point the shadow samplers at fixed texture units and bind one depth cubemap per light.
+    /// Units are chosen above the material maps Raylib manages, so nothing rebinds them
+    /// between draws. Every slot must hold a real cubemap even for lights without shadows, or
+    /// the sampler would alias a 2D texture on unit 0.
+    /// </summary>
+    public void BindShadowCubes(ReadOnlySpan<uint> cubemapIds, ReadOnlySpan<bool> enabled, int firstTextureSlot)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        for (var i = 0; i < MaxLights; i++)
+        {
+            var id = i < cubemapIds.Length ? cubemapIds[i] : 0u;
+            _shadowEnabled[i] = id != 0 && i < enabled.Length && enabled[i] ? 1 : 0;
+
+            if (_shadowCubeLocs[i] >= 0)
+            {
+                Raylib.SetShaderValue(
+                    _shader,
+                    _shadowCubeLocs[i],
+                    firstTextureSlot + i,
+                    ShaderUniformDataType.Int);
+            }
+
+            if (id == 0)
+            {
+                continue;
+            }
+
+            Rlgl.ActiveTextureSlot(firstTextureSlot + i);
+            Rlgl.EnableTextureCubemap(id);
+        }
+
+        Rlgl.ActiveTextureSlot(0);
+        PushShadowEnabled();
+    }
+
+    public void SetShadowParams(float farPlane, int faceResolution)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        Raylib.SetShaderValue(_shader, _shadowFarPlaneLoc, farPlane, ShaderUniformDataType.Float);
+        Raylib.SetShaderValue(
+            _shader,
+            _shadowTexelLoc,
+            faceResolution > 0 ? 1f/faceResolution : 0f,
+            ShaderUniformDataType.Float);
+    }
+
+    /// <summary>Clear every mask, restoring unoccluded lighting.</summary>
+    public void ClearLightVolumes()
+    {
+        if (!IsLoaded || _lightVolumeCountLoc < 0)
+        {
+            return;
+        }
+
+        Array.Clear(_lightVolumeCounts);
+        Array.Clear(_volumePlaneCounts);
+        PushLightVolumes();
     }
 
     public void UpdateViewPosition(Vector3 cameraPosition)
@@ -313,6 +448,17 @@ public sealed class BasicLighting : IDisposable
         _useTexNormalLoc = -1;
         _useTexMRALoc = -1;
         _useTexEmissiveLoc = -1;
+        _lightVolumeCountLoc = -1;
+        _volumePlaneCountLoc = -1;
+        _volumePlanesLoc = -1;
+        _shadowEnabledLoc = -1;
+        _shadowFarPlaneLoc = -1;
+        _shadowTexelLoc = -1;
+        Array.Clear(_shadowCubeLocs);
+        Array.Clear(_shadowEnabled);
+        Array.Clear(_lightVolumeCounts);
+        Array.Clear(_volumePlaneCounts);
+        Array.Clear(_volumePlanes);
         _lights.Clear();
     }
 
@@ -340,6 +486,19 @@ public sealed class BasicLighting : IDisposable
         _useTexNormalLoc = Raylib.GetShaderLocation(_shader, "useTexNormal");
         _useTexMRALoc = Raylib.GetShaderLocation(_shader, "useTexMRA");
         _useTexEmissiveLoc = Raylib.GetShaderLocation(_shader, "useTexEmissive");
+        _lightVolumeCountLoc = Raylib.GetShaderLocation(_shader, "lightVolumeCount");
+        _volumePlaneCountLoc = Raylib.GetShaderLocation(_shader, "volumePlaneCount");
+        _volumePlanesLoc = Raylib.GetShaderLocation(_shader, "volumePlanes");
+        _shadowEnabledLoc = Raylib.GetShaderLocation(_shader, "shadowEnabled");
+        _shadowFarPlaneLoc = Raylib.GetShaderLocation(_shader, "shadowFarPlane");
+        _shadowTexelLoc = Raylib.GetShaderLocation(_shader, "shadowTexel");
+
+        // Sampler arrays cannot be indexed by a loop variable in GLSL 3.30, so the cubes are
+        // separate uniforms and the shader switches on the light index.
+        for (var i = 0; i < MaxLights; i++)
+        {
+            _shadowCubeLocs[i] = Raylib.GetShaderLocation(_shader, $"shadowCube{i}");
+        }
     }
 
     private void SetPbrDefaults()
@@ -371,6 +530,43 @@ public sealed class BasicLighting : IDisposable
             Locs = Rlgl.GetShaderLocsDefault()
         };
 
+    private void PushLightVolumes()
+    {
+        Raylib.SetShaderValueV(
+            _shader,
+            _lightVolumeCountLoc,
+            _lightVolumeCounts,
+            ShaderUniformDataType.Int,
+            MaxLights);
+        Raylib.SetShaderValueV(
+            _shader,
+            _volumePlaneCountLoc,
+            _volumePlaneCounts,
+            ShaderUniformDataType.Int,
+            MaxVolumes);
+        Raylib.SetShaderValueV(
+            _shader,
+            _volumePlanesLoc,
+            _volumePlanes,
+            ShaderUniformDataType.Vec4,
+            MaxVolumePlanes);
+    }
+
+    private void PushShadowEnabled()
+    {
+        if (_shadowEnabledLoc < 0)
+        {
+            return;
+        }
+
+        Raylib.SetShaderValueV(
+            _shader,
+            _shadowEnabledLoc,
+            _shadowEnabled,
+            ShaderUniformDataType.Int,
+            MaxLights);
+    }
+
     private void PushLightEnabled(SceneLight light)
     {
         Raylib.SetShaderValue(
@@ -389,7 +585,13 @@ public sealed class BasicLighting : IDisposable
         Raylib.SetShaderValue(_shader, _useTexEmissiveLoc, maps && useEmissive ? 1 : 0, ShaderUniformDataType.Int);
     }
 
-    private SceneLight? AddLight(LightType type, Vector3 position, Vector3 target, Color color, float intensity)
+    private SceneLight? AddLight(
+        LightType type,
+        Vector3 position,
+        Vector3 target,
+        Color color,
+        float intensity,
+        string sectorId)
     {
         if (!IsLoaded || _lights.Count >= MaxLights)
         {
@@ -405,6 +607,7 @@ public sealed class BasicLighting : IDisposable
             Target = target,
             Color = color,
             Intensity = intensity,
+            SectorId = sectorId,
             EnabledLoc = Raylib.GetShaderLocation(_shader, $"lights[{index}].enabled"),
             TypeLoc = Raylib.GetShaderLocation(_shader, $"lights[{index}].type"),
             PositionLoc = Raylib.GetShaderLocation(_shader, $"lights[{index}].position"),

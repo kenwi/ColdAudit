@@ -1,4 +1,5 @@
 using System.Numerics;
+using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
 using ColdAudit.Shared.Rendering;
@@ -8,24 +9,17 @@ using Raylib_cs;
 namespace ColdAudit.Features.Lighting;
 
 /// <summary>
-/// Owns the shared PBR lighting shader and default scene lights.
+/// Owns the shared PBR lighting shader and instantiates the level's authored lights.
 /// </summary>
 public sealed class LightingFeature : FeatureBase
 {
     private const float DebugSphereRadius = 0.25f;
-    private const string CarPlacementId = "prop_old_car";
-    private const float CarLightRadius = 3.5f;
-    private const float CarLightHeight = 1.2f;
-    private const float CarLightOrbitDegreesPerSecond = 20f;
-    private const float CarLightHoverAmplitude = 0.7f;
-    private const float CarLightHoverDegreesPerSecond = 90f;
+    private const byte VolumeOutlineAlpha = 70;
 
     private GameWorld? _world;
     private BasicLighting? _lighting;
-    private readonly List<SceneLight> _carRingLights = [];
-    private Vector3 _carLightCenter;
-    private float _carLightOrbitDegrees;
-    private float _carLightHoverDegrees;
+    private readonly List<AnimatedLight> _animatedLights = [];
+    private float _elapsedSeconds;
 
     public override void Load(GameWorld world, EventBus events)
     {
@@ -36,13 +30,7 @@ public sealed class LightingFeature : FeatureBase
 
         if (_lighting.IsLoaded)
         {
-            // Stock PBR shader treats every light as a point light (inverse-square).
-            // Max 4 lights: keep a room fill and put RGB around the test car.
-            _lighting.AddPointLight(
-                new Vector3(0f, 3.5f, 2f),
-                new Color(255, 245, 230, 255),
-                intensity: 10f);
-            AddCarRingLights(world);
+            AddAuthoredLights(world);
         }
 
         world.Lighting = _lighting;
@@ -68,7 +56,9 @@ public sealed class LightingFeature : FeatureBase
         lighting.SetPbrTexturesEnabled(world.PbrTexturesEnabled);
         lighting.SetLightingEnabled(world.LightingEnabled);
         lighting.UpdateViewPosition(world.PlayerPosition);
-        OrbitCarRingLights(dt);
+
+        _elapsedSeconds += dt;
+        AnimateLights(lighting);
     }
 
     public override void Draw(GameWorld world)
@@ -90,10 +80,45 @@ public sealed class LightingFeature : FeatureBase
             }
 
             Raylib.DrawSphereWires(light.Position, DebugSphereRadius, 12, 12, light.Color);
+
+            if (world.LightVolumeMaskEnabled)
+            {
+                DrawLightVolumes(world, light);
+            }
         }
 
         Raylib.EndMode3D();
     }
+
+    /// <summary>
+    /// Outline of what <c>LightVisibilityFeature</c> lets this light reach: its room box
+    /// plus the doorway shafts leaving that room.
+    /// </summary>
+    private static void DrawLightVolumes(GameWorld world, SceneLight light)
+    {
+        var graph = world.Sectors;
+        if (string.IsNullOrEmpty(light.SectorId) ||
+            !graph.TryGetBounds(light.SectorId, out var bounds))
+        {
+            return;
+        }
+
+        var outline = Fade(light.Color, VolumeOutlineAlpha);
+        Raylib.DrawCubeWires(bounds.Center, bounds.Size.X, bounds.Size.Y, bounds.Size.Z, outline);
+
+        foreach (var link in graph.LinksFrom(light.SectorId))
+        {
+            var opening = link.Opening;
+            for (var i = 0; i < opening.Length; i++)
+            {
+                Raylib.DrawLine3D(opening[i], opening[(i + 1) % opening.Length], outline);
+                Raylib.DrawLine3D(light.Position, opening[i], outline);
+            }
+        }
+    }
+
+    private static Color Fade(Color color, byte alpha) =>
+        new(color.R, color.G, color.B, alpha);
 
     public override void Unload()
     {
@@ -104,71 +129,63 @@ public sealed class LightingFeature : FeatureBase
 
         _lighting?.Dispose();
         _lighting = null;
-        _carRingLights.Clear();
-        _carLightOrbitDegrees = 0f;
-        _carLightHoverDegrees = 0f;
+        _animatedLights.Clear();
+        _elapsedSeconds = 0f;
         _world = null;
     }
 
-    private void AddCarRingLights(GameWorld world)
+    private void AddAuthoredLights(GameWorld world)
     {
-        _carRingLights.Clear();
-        if (!TryGetCarPosition(world, out _carLightCenter))
+        _animatedLights.Clear();
+        if (world.ActiveLevel is null)
         {
             return;
         }
 
-        ReadOnlySpan<(Color Color, float Intensity)> ring =
-        [
-            (Color.Red, 5f),
-            (Color.Green, 5f),
-            (Color.Blue, 5f)
-        ];
-
-        for (var i = 0; i < ring.Length; i++)
+        foreach (var def in world.ActiveLevel.Lights)
         {
+            var anchor = Vector3.Zero;
+            var hasAnchor = def.HasAnchor && TryGetPlacementPosition(world, def.AnchorPlacementId!, out anchor);
+
             var light = _lighting!.AddPointLight(
-                CarRingPosition(i, ring.Length, 0f, 0f),
-                ring[i].Color,
-                ring[i].Intensity);
-            if (light is not null)
+                hasAnchor ? OrbitPosition(def, anchor, 0f) : def.Position,
+                def.Color,
+                def.Intensity,
+                def.SectorId);
+            if (light is null)
             {
-                _carRingLights.Add(light);
+                // Shader is capped at BasicLighting.MaxLights; extra defs are ignored.
+                break;
+            }
+
+            if (hasAnchor)
+            {
+                _animatedLights.Add(new AnimatedLight(def, light, anchor));
             }
         }
     }
 
-    private void OrbitCarRingLights(float dt)
+    private void AnimateLights(BasicLighting lighting)
     {
-        if (_lighting is not { IsLoaded: true } || _carRingLights.Count == 0)
+        foreach (var animated in _animatedLights)
         {
-            return;
-        }
-
-        _carLightOrbitDegrees += dt * CarLightOrbitDegreesPerSecond;
-        _carLightHoverDegrees += dt * CarLightHoverDegreesPerSecond;
-        var count = _carRingLights.Count;
-        for (var i = 0; i < count; i++)
-        {
-            var light = _carRingLights[i];
-            light.Position = CarRingPosition(i, count, _carLightOrbitDegrees, _carLightHoverDegrees);
-            _lighting.UpdateLight(light);
+            animated.Light.Position = OrbitPosition(animated.Def, animated.Anchor, _elapsedSeconds);
+            lighting.UpdateLight(animated.Light);
         }
     }
 
-    private Vector3 CarRingPosition(int index, int count, float orbitDegrees, float hoverDegrees)
+    private static Vector3 OrbitPosition(LightDef def, Vector3 anchor, float elapsedSeconds)
     {
-        var step = 360f / count;
-        var angle = (orbitDegrees + index * step) * MathF.PI / 180f;
-        var hover = (hoverDegrees + index * step) * MathF.PI / 180f;
-        var height = CarLightHeight + CarLightHoverAmplitude * MathF.Sin(hover);
-        return _carLightCenter + new Vector3(
-            MathF.Cos(angle) * CarLightRadius,
+        var orbit = (def.OrbitPhaseDegrees + def.OrbitDegreesPerSecond * elapsedSeconds) * MathF.PI / 180f;
+        var hover = (def.OrbitPhaseDegrees + def.HoverDegreesPerSecond * elapsedSeconds) * MathF.PI / 180f;
+        var height = def.OrbitHeight + def.HoverAmplitude * MathF.Sin(hover);
+        return anchor + new Vector3(
+            MathF.Cos(orbit) * def.OrbitRadius,
             height,
-            MathF.Sin(angle) * CarLightRadius);
+            MathF.Sin(orbit) * def.OrbitRadius);
     }
 
-    private static bool TryGetCarPosition(GameWorld world, out Vector3 position)
+    private static bool TryGetPlacementPosition(GameWorld world, string placementId, out Vector3 position)
     {
         position = default;
         if (world.ActiveLevel is null)
@@ -178,7 +195,7 @@ public sealed class LightingFeature : FeatureBase
 
         foreach (var placement in world.ActiveLevel.ModelPlacements)
         {
-            if (placement.Id != CarPlacementId)
+            if (placement.Id != placementId)
             {
                 continue;
             }
@@ -189,4 +206,6 @@ public sealed class LightingFeature : FeatureBase
 
         return false;
     }
+
+    private sealed record AnimatedLight(LightDef Def, SceneLight Light, Vector3 Anchor);
 }

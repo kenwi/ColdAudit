@@ -1,4 +1,5 @@
 using ColdAudit.Features.Physics;
+using ColdAudit.Features.Shadows;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
 using ColdAudit.Shared.World;
@@ -26,10 +27,12 @@ public sealed class DebugOverlayFeature : FeatureBase
     ];
 
     private readonly PhysicsFeature _physics;
+    private readonly ShadowMapFeature _shadows;
 
-    public DebugOverlayFeature(PhysicsFeature physics)
+    public DebugOverlayFeature(PhysicsFeature physics, ShadowMapFeature shadows)
     {
         _physics = physics;
+        _shadows = shadows;
     }
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
@@ -55,6 +58,7 @@ public sealed class DebugOverlayFeature : FeatureBase
             if (Raylib.IsKeyPressed(SectorToggleKeys[i]))
             {
                 sectors[i].RenderEnabled = !sectors[i].RenderEnabled;
+                world.InvalidateShadowGeometry();
             }
         }
     }
@@ -90,6 +94,14 @@ public sealed class DebugOverlayFeature : FeatureBase
             ? $"ON lights={world.Lighting.Lights.Count}"
             : "OFF";
         Raylib.DrawText($"lighting: {lighting}  (F4)", 12, y, 14, Color.Lime);
+        y += 18;
+        var mask = world.LightVolumeMaskEnabled ? "ON" : "OFF";
+        Raylib.DrawText($"light occlusion: {mask}  (F5)", 12, y, 14, Color.Lime);
+        y += 18;
+        var shadows = world.ShadowsEnabled
+            ? $"ON faces={_shadows.FacesRenderedLastFrame}"
+            : "OFF";
+        Raylib.DrawText($"shadows: {shadows}  (F6)", 12, y, 14, Color.Lime);
         y += 18;
         var fullscreen = Raylib.IsWindowFullscreen() ? "ON" : "OFF";
         Raylib.DrawText($"fullscreen: {fullscreen}  (F11)", 12, y, 14, Color.Lime);

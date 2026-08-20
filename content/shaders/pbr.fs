@@ -5,6 +5,11 @@
 #define LIGHT_POINT             1
 #define PI 3.14159265358979323846
 
+// Portal-derived occlusion: each light may only illuminate points inside one of its
+// convex volumes (own room, plus one shaft per doorway leaving it).
+#define MAX_LIGHT_VOLUMES       4
+#define VOLUME_PLANES           6
+
 struct Light {
     int enabled;
     int type;
@@ -19,7 +24,6 @@ in vec3 fragPosition;
 in vec2 fragTexCoord;
 in vec4 fragColor;
 in vec3 fragNormal;
-in vec4 shadowPos;
 in mat3 TBN;
 
 // Output fragment color
@@ -54,6 +58,95 @@ uniform vec3 viewPos;
 
 uniform vec3 ambientColor;
 uniform float ambient;
+
+// Light occlusion volumes. Volumes are convex, stored as inward-facing planes
+// (xyz = normal, w = offset); a light reaches a point inside ANY of its volumes.
+// A light with zero volumes is unmasked.
+uniform int  lightVolumeCount[MAX_LIGHTS];
+uniform int  volumePlaneCount[MAX_LIGHTS*MAX_LIGHT_VOLUMES];
+uniform vec4 volumePlanes[MAX_LIGHTS*MAX_LIGHT_VOLUMES*VOLUME_PLANES];
+
+float LightReaches(int lightIndex, vec3 p)
+{
+    int volumes = lightVolumeCount[lightIndex];
+    if (volumes <= 0) return 1.0;
+
+    for (int v = 0; v < volumes; v++)
+    {
+        int slot = lightIndex*MAX_LIGHT_VOLUMES + v;
+        int planes = volumePlaneCount[slot];
+        bool inside = planes > 0;
+        for (int k = 0; k < planes; k++)
+        {
+            vec4 plane = volumePlanes[slot*VOLUME_PLANES + k];
+            if (dot(plane.xyz, p) + plane.w < 0.0)
+            {
+                inside = false;
+                break;
+            }
+        }
+
+        if (inside) return 1.0;
+    }
+
+    return 0.0;
+}
+
+// Per-light depth cubemaps holding radial distance to the light, normalised by
+// shadowFarPlane. GLSL 3.30 forbids indexing a sampler array with a loop variable, so the
+// cubes are separate uniforms and SampleShadowDistance switches on the light index.
+uniform samplerCube shadowCube0;
+uniform samplerCube shadowCube1;
+uniform samplerCube shadowCube2;
+uniform samplerCube shadowCube3;
+
+uniform int shadowEnabled[MAX_LIGHTS];
+uniform float shadowFarPlane;
+uniform float shadowTexel;
+
+float SampleShadowDistance(int lightIndex, vec3 dir)
+{
+    if (lightIndex == 0) return texture(shadowCube0, dir).r*shadowFarPlane;
+    if (lightIndex == 1) return texture(shadowCube1, dir).r*shadowFarPlane;
+    if (lightIndex == 2) return texture(shadowCube2, dir).r*shadowFarPlane;
+    return texture(shadowCube3, dir).r*shadowFarPlane;
+}
+
+/// 0 = fully shadowed, 1 = fully lit. Five taps soften the edge, and both the bias and the tap
+/// spread are scaled by the world size of one cubemap texel at this distance, which is what
+/// keeps a surface from shadowing itself when the light grazes it.
+float ShadowVisibility(int lightIndex, vec3 p, vec3 N, vec3 lightPos)
+{
+    if (shadowEnabled[lightIndex] == 0) return 1.0;
+
+    vec3 toFrag = p - lightPos;
+    float dist = length(toFrag);
+    if (dist >= shadowFarPlane || dist < 0.001) return 1.0;
+
+    // A 90 degree face spans 2*dist across shadowTexel-sized texels at this range, so this is
+    // roughly how far a neighbouring texel's depth can legitimately differ.
+    float texelWorld = 2.0*dist*shadowTexel;
+
+    // Normal-offset: compare from just above the surface rather than on it. Grazing light needs
+    // the most room, since that is where one texel covers the largest depth range.
+    float grazing = 1.0 - abs(dot(N, normalize(toFrag)));
+    vec3 samplePos = p + N*(texelWorld*(2.0 + 6.0*grazing) + 0.02);
+
+    vec3 offsetToFrag = samplePos - lightPos;
+    vec3 dir = normalize(offsetToFrag);
+    float threshold = length(offsetToFrag) - (texelWorld*2.0 + 0.05);
+
+    vec3 basisUp = abs(dir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent = normalize(cross(basisUp, dir))*shadowTexel;
+    vec3 bitangent = cross(dir, tangent/shadowTexel)*shadowTexel;
+
+    float lit = step(threshold, SampleShadowDistance(lightIndex, dir));
+    lit += step(threshold, SampleShadowDistance(lightIndex, dir + tangent));
+    lit += step(threshold, SampleShadowDistance(lightIndex, dir - tangent));
+    lit += step(threshold, SampleShadowDistance(lightIndex, dir + bitangent));
+    lit += step(threshold, SampleShadowDistance(lightIndex, dir - bitangent));
+    return lit*0.2;
+}
 
 // Reflectivity in range 0.0 to 1.0
 // NOTE: Reflectivity is increased when surface view at larger angle
@@ -121,9 +214,16 @@ vec3 ComputePBR()
 
     for (int i = 0; i < numOfLights; i++)
     {
+        float reaches = float(lights[i].enabled)*LightReaches(i, fragPosition);
+        if (reaches <= 0.0) continue;                                // Occluded by walls
+
         vec3 L = normalize(lights[i].position - fragPosition);      // Compute light vector
         vec3 H = normalize(V + L);                                  // Compute halfway bisecting vector
         float dist = length(lights[i].position - fragPosition);     // Compute distance to light
+
+        reaches *= ShadowVisibility(i, fragPosition, N, lights[i].position);
+        if (reaches <= 0.0) continue;                                // Occluded by geometry
+
         float attenuation = 1.0/(dist*dist*0.23);                   // Compute attenuation
         vec3 radiance = lights[i].color.rgb*lights[i].intensity*attenuation; // Compute input radiance, light energy comming in
 
@@ -144,7 +244,7 @@ vec3 ComputePBR()
 
         // Mult kD by the inverse of metallnes, only non-metals should have diffuse light
         kD *= 1.0 - metallic;
-        lightAccum += ((kD*albedo.rgb/PI + spec)*radiance*nDotL)*lights[i].enabled; // Angle of light has impact on result
+        lightAccum += ((kD*albedo.rgb/PI + spec)*radiance*nDotL)*reaches; // Angle of light has impact on result
     }
 
     vec3 ambientFinal = (ambientColor + albedo)*ambient*0.5;

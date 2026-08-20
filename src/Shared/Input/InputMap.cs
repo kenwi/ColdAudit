@@ -12,5 +12,7 @@ public static class InputMap
     public const KeyboardKey SectorCullToggle = KeyboardKey.F2;
     public const KeyboardKey PbrTexturesToggle = KeyboardKey.F3;
     public const KeyboardKey LightingToggle = KeyboardKey.F4;
+    public const KeyboardKey LightVolumeToggle = KeyboardKey.F5;
+    public const KeyboardKey ShadowsToggle = KeyboardKey.F6;
     public const KeyboardKey FullscreenToggle = KeyboardKey.F11;
 }

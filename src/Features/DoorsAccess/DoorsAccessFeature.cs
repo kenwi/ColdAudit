@@ -63,7 +63,7 @@ public sealed class DoorState
     }
 }
 
-public sealed class DoorsAccessFeature : FeatureBase
+public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
 {
     private const float OpenSpeed = 2f;
     private const float LockDeniedDuration = 1.75f;
@@ -158,7 +158,13 @@ public sealed class DoorsAccessFeature : FeatureBase
             }
 
             var target = door.IsOpen ? 1f : 0f;
-            door.OpenAmount = MathUtil.MoveTowards(door.OpenAmount, target, OpenSpeed * dt);
+            var previous = door.OpenAmount;
+            door.OpenAmount = MathUtil.MoveTowards(previous, target, OpenSpeed * dt);
+            if (MathF.Abs(door.OpenAmount - previous) > 1e-5f)
+            {
+                // A swinging slab changes what the lights can reach.
+                world.InvalidateShadowGeometry();
+            }
         }
     }
 
@@ -202,6 +208,37 @@ public sealed class DoorsAccessFeature : FeatureBase
         }
 
         Raylib.EndMode3D();
+    }
+
+    /// <summary>
+    /// A closed slab blocks light through its doorway; an open one swings out of the way.
+    /// </summary>
+    public void DrawDepth(GameWorld world, ShadowPass pass)
+    {
+        foreach (var door in _doors)
+        {
+            if (!pass.IncludesSector(door.SectorId))
+            {
+                continue;
+            }
+
+            var yawDegrees = MathUtil.RadToDeg(door.CurrentYaw);
+            if (TryGetModel(door, out var handle))
+            {
+                pass.DrawModel(handle.Model, door.HingePosition, yawDegrees, 1f);
+                continue;
+            }
+
+            // Placeholder slab: same hinge offset as DrawDoor, but as a mesh so the depth
+            // shader receives a model matrix.
+            var localCenter = Vector3.Transform(
+                new Vector3(door.Width * 0.5f, door.Height * 0.5f, 0f),
+                Matrix4x4.CreateRotationY(door.CurrentYaw));
+            pass.DrawBox(
+                door.HingePosition + localCenter,
+                new Vector3(door.Width, door.Height, door.Thickness),
+                yawDegrees);
+        }
     }
 
     public override void Unload()

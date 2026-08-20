@@ -19,6 +19,7 @@ public sealed class LevelLoadFeature : FeatureBase
         Level = CreateTestLevel();
         Session.IsLoaded = true;
         world.ActiveLevel = Level;
+        world.Sectors.Build(Level);
 
         world.PlayerPosition = Level.PlayerSpawn;
         world.PlayerYaw = Level.PlayerSpawnYaw;
@@ -33,6 +34,7 @@ public sealed class LevelLoadFeature : FeatureBase
         if (_world is not null && ReferenceEquals(_world.ActiveLevel, Level))
         {
             _world.ActiveLevel = null;
+            _world.Sectors.Clear();
         }
 
         Level = null;
@@ -153,7 +155,50 @@ public sealed class LevelLoadFeature : FeatureBase
             Locked = false
         });
 
+        AddTestLights(level);
+
         return level;
+    }
+
+    /// <summary>
+    /// Room fill plus an RGB ring orbiting the test car. Capped at
+    /// <c>BasicLighting.MaxLights</c> (4) by the shared PBR shader.
+    /// </summary>
+    private static void AddTestLights(LevelData level)
+    {
+        level.Lights.Add(new LightDef
+        {
+            Id = "light_room_a_fill",
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0f, 3.5f, 2f),
+            Color = new Raylib_cs.Color(255, 245, 230, 255),
+            Intensity = 10f
+        });
+
+        ReadOnlySpan<Raylib_cs.Color> ring =
+        [
+            Raylib_cs.Color.Red,
+            Raylib_cs.Color.Green,
+            Raylib_cs.Color.Blue
+        ];
+
+        for (var i = 0; i < ring.Length; i++)
+        {
+            level.Lights.Add(new LightDef
+            {
+                Id = $"light_car_ring_{i}",
+                SectorId = "room_a",
+                Color = ring[i],
+                Intensity = 5f,
+                AnchorPlacementId = "prop_old_car",
+                OrbitRadius = 3.5f,
+                OrbitDegreesPerSecond = 20f,
+                OrbitPhaseDegrees = i * (360f / ring.Length),
+                OrbitHeight = 1.2f,
+                HoverAmplitude = 0.7f,
+                HoverDegreesPerSecond = 90f
+            });
+        }
     }
 
     private static LevelData CreatePlaceholderLevel(string levelId)
