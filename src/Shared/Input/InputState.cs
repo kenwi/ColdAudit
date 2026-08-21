@@ -36,10 +36,10 @@ public sealed class InputState
 
         MoveAxes = move;
         LookDelta = Raylib.GetMouseDelta();
-        UsePressed = Raylib.IsKeyPressed(InputMap.Use) || Raylib.IsKeyPressed(KeyboardKey.F);
+        UsePressed = Raylib.IsKeyPressed(InputMap.Use);
         UnlockPressed = Raylib.IsKeyPressed(InputMap.Unlock);
         LockPressed = Raylib.IsKeyPressed(InputMap.Lock);
-        CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch) || Raylib.IsKeyDown(KeyboardKey.C);
+        CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch);
         ToggleDebugPressed = Raylib.IsKeyPressed(InputMap.DebugToggle);
         ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
         TogglePbrTexturesPressed = Raylib.IsKeyPressed(InputMap.PbrTexturesToggle);
