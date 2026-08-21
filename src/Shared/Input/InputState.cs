@@ -13,6 +13,10 @@ public sealed class InputState
     public bool CrouchHeld { get; private set; }
     public bool ToggleDebugPressed { get; private set; }
     public bool ToggleSectorCullPressed { get; private set; }
+    public bool TogglePbrTexturesPressed { get; private set; }
+    public bool ToggleLightingPressed { get; private set; }
+    public bool ToggleLightVolumesPressed { get; private set; }
+    public bool ToggleShadowsPressed { get; private set; }
     public bool ToggleFullscreenPressed { get; private set; }
 
     public void Sample()
@@ -32,12 +36,16 @@ public sealed class InputState
 
         MoveAxes = move;
         LookDelta = Raylib.GetMouseDelta();
-        UsePressed = Raylib.IsKeyPressed(InputMap.Use) || Raylib.IsKeyPressed(KeyboardKey.F);
+        UsePressed = Raylib.IsKeyPressed(InputMap.Use);
         UnlockPressed = Raylib.IsKeyPressed(InputMap.Unlock);
         LockPressed = Raylib.IsKeyPressed(InputMap.Lock);
-        CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch) || Raylib.IsKeyDown(KeyboardKey.C);
+        CrouchHeld = Raylib.IsKeyDown(InputMap.Crouch);
         ToggleDebugPressed = Raylib.IsKeyPressed(InputMap.DebugToggle);
         ToggleSectorCullPressed = Raylib.IsKeyPressed(InputMap.SectorCullToggle);
+        TogglePbrTexturesPressed = Raylib.IsKeyPressed(InputMap.PbrTexturesToggle);
+        ToggleLightingPressed = Raylib.IsKeyPressed(InputMap.LightingToggle);
+        ToggleLightVolumesPressed = Raylib.IsKeyPressed(InputMap.LightVolumeToggle);
+        ToggleShadowsPressed = Raylib.IsKeyPressed(InputMap.ShadowsToggle);
         ToggleFullscreenPressed = Raylib.IsKeyPressed(InputMap.FullscreenToggle);
     }
 }

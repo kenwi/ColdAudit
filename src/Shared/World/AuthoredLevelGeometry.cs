@@ -2,9 +2,8 @@ using System.Numerics;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Math;
 using ColdAudit.Shared.Rendering;
-using ColdAudit.Shared.World;
 
-namespace ColdAudit.Features.SectorVisibility;
+namespace ColdAudit.Shared.World;
 
 /// <summary>
 /// Resolves sector/portal volumes and doorway openings from authored mesh paths

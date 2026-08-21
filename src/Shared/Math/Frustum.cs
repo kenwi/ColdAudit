@@ -18,6 +18,10 @@ public sealed class Frustum
     private readonly Vector3[] _clipB = new Vector3[MaxClipVerts];
 
     public int PlaneCount => _planeCount;
+
+    /// <summary>Inward-facing planes (xyz = normal, w = offset).</summary>
+    public ReadOnlySpan<Vector4> Planes => _planes.AsSpan(0, _planeCount);
+
     public void CopyFrom(Frustum other)
     {
         _planeCount = other._planeCount;

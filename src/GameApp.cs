@@ -10,10 +10,12 @@ using ColdAudit.Features.LevelLoad;
 using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.LevelProps;
 using ColdAudit.Features.Lighting;
+using ColdAudit.Features.LightVisibility;
 using ColdAudit.Features.ObjectiveExfil;
 using ColdAudit.Features.Physics;
 using ColdAudit.Features.PlayerController;
 using ColdAudit.Features.SectorVisibility;
+using ColdAudit.Features.Shadows;
 using ColdAudit.Features.UiPresent;
 using ColdAudit.Features.Workstations;
 using ColdAudit.Features.WorldRender;
@@ -64,6 +66,11 @@ public sealed class GameApp
 
             _events.Clear();
 
+            foreach (var feature in _features)
+            {
+                feature.DrawOffscreen(_world);
+            }
+
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(12, 14, 18, 255));
 
@@ -90,10 +97,15 @@ public sealed class GameApp
         // WorldRender.Update syncs the shared player camera before 3D draws.
         // Physics debug draw sits with the level pass (after sectors, before prop meshes).
         var physics = new PhysicsFeature();
+        var levelModels = new LevelModelsFeature();
+        var levelProps = new LevelPropsFeature();
+        var doors = new DoorsAccessFeature();
+        // Shadow casters are drawn once per cubemap face, before the main pass.
+        var shadows = new ShadowMapFeature([levelModels, levelProps, doors]);
+
         _features.Add(new LevelLoadFeature());
         _features.Add(physics);
         _features.Add(new FullscreenFeature());
-        var doors = new DoorsAccessFeature();
         _features.Add(new PlayerControllerFeature(physics));
         _features.Add(new InteractionFeature(doors));
         _features.Add(new InventoryFeature());
@@ -104,12 +116,16 @@ public sealed class GameApp
         _features.Add(new ObjectiveExfilFeature());
         _features.Add(new SectorVisibilityFeature());
         _features.Add(new LightingFeature());
+        // After LightingFeature: needs this frame's light positions to build occlusion volumes.
+        _features.Add(new LightVisibilityFeature());
+        // After the volumes: shadow cubes cull casters against each light's sector reach.
+        _features.Add(shadows);
         _features.Add(new WorldRenderFeature());
-        _features.Add(new LevelModelsFeature());
+        _features.Add(levelModels);
         _features.Add(new PhysicsDebugDrawFeature(physics));
-        _features.Add(new LevelPropsFeature());
+        _features.Add(levelProps);
         _features.Add(new HudFeature());
-        _features.Add(new DebugOverlayFeature(physics));
+        _features.Add(new DebugOverlayFeature(physics, shadows));
         _features.Add(new UiPresentFeature());
     }
 }
