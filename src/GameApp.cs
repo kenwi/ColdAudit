@@ -37,13 +37,14 @@ public sealed class GameApp
     private readonly EventBus _events = new();
     private readonly InputState _input = new();
     private readonly List<IFeature> _features = [];
+    private bool _cursorLocked;
 
     public void Run()
     {
         Raylib.SetConfigFlags(ConfigFlags.Msaa4xHint | ConfigFlags.VSyncHint);
         Raylib.InitWindow(ScreenWidth, ScreenHeight, Title);
         Raylib.SetTargetFPS(60);
-        Raylib.DisableCursor();
+        // Cursor stays free through Load so early breakpoints do not trap the mouse.
 
         BuildFeatures();
 
@@ -54,11 +55,12 @@ public sealed class GameApp
 
         while (!Raylib.WindowShouldClose())
         {
+            SyncCursorCapture();
+
             var dt = Raylib.GetFrameTime();
             FrameTime.Delta = dt;
             FrameTime.Total += dt;
             _input.Sample();
-
             foreach (var feature in _features)
             {
                 feature.Update(dt, _world, _input, _events);
@@ -88,6 +90,31 @@ public sealed class GameApp
         }
 
         Raylib.CloseWindow();
+    }
+
+    /// <summary>
+    /// Locks the cursor only while the window is focused, and only after Load.
+    /// Unfocus releases it for the debugger; focus returns re-grabs for look.
+    /// </summary>
+    private void SyncCursorCapture()
+    {
+        var shouldLock = Raylib.IsWindowFocused();
+        if (shouldLock == _cursorLocked)
+        {
+            return;
+        }
+
+        _cursorLocked = shouldLock;
+        if (shouldLock)
+        {
+            Raylib.DisableCursor();
+            // Discard the recenter spike from entering relative mouse mode.
+            _ = Raylib.GetMouseDelta();
+        }
+        else
+        {
+            Raylib.EnableCursor();
+        }
     }
 
     private void BuildFeatures()

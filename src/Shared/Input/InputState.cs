@@ -35,7 +35,8 @@ public sealed class InputState
         }
 
         MoveAxes = move;
-        LookDelta = Raylib.GetMouseDelta();
+        // Ignore look while the cursor is free (unfocused / not yet captured).
+        LookDelta = Raylib.IsCursorHidden() ? Raylib.GetMouseDelta() : Vector2.Zero;
         UsePressed = Raylib.IsKeyPressed(InputMap.Use);
         UnlockPressed = Raylib.IsKeyPressed(InputMap.Unlock);
         LockPressed = Raylib.IsKeyPressed(InputMap.Lock);
