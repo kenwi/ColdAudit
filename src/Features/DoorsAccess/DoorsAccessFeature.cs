@@ -1,4 +1,5 @@
 using System.Numerics;
+using ColdAudit.Features.Inventory;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
 using ColdAudit.Shared.Math;
@@ -20,6 +21,7 @@ public sealed class DoorState
     public float OpenAngle { get; init; } = MathF.PI * 0.5f;
     public float InteractRadius { get; init; } = 2.5f;
     public string? ModelPath { get; init; }
+    public string? RequiredItemId { get; init; }
     public bool Locked { get; set; }
     public bool IsOpen { get; set; }
     public float OpenAmount { get; set; }
@@ -31,39 +33,44 @@ public sealed class DoorState
     public float CurrentYaw => ClosedYaw + OpenAmount * OpenAngle * SwingSign;
 
     public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
+    public bool RequiresItem => !string.IsNullOrWhiteSpace(RequiredItemId);
 
-    public string Prompt
+    public string GetPrompt(bool hasRequiredItem)
     {
-        get
+        if (LockDeniedTime > 0f)
         {
-            if (LockDeniedTime > 0f)
-            {
-                return "Cannot open: locked";
-            }
-
-            if (Locked)
-            {
-                return "Door: Locked  [U] Unlock";
-            }
-
-            if (OpenAmount < 0.01f && !IsOpen)
-            {
-                return "Door: Closed  [E] Open  [L] Lock";
-            }
-
-            if (OpenAmount > 0.99f && IsOpen)
-            {
-                return "Door: Open  [E] Close  [L] Lock";
-            }
-
-            return IsOpen
-                ? $"Door: Opening {(int)(OpenAmount * 100f)}%"
-                : $"Door: Closing {(int)(OpenAmount * 100f)}%";
+            return "Cannot open: locked";
         }
+
+        if (Locked)
+        {
+            if (RequiresItem)
+            {
+                return hasRequiredItem
+                    ? "Door: Locked  [E] Use keycard"
+                    : "Door: Locked";
+            }
+
+            return "Door: Locked  [U] Unlock";
+        }
+
+        if (OpenAmount < 0.01f && !IsOpen)
+        {
+            return "Door: Closed  [E] Open  [L] Lock";
+        }
+
+        if (OpenAmount > 0.99f && IsOpen)
+        {
+            return "Door: Open  [E] Close";
+        }
+
+        return IsOpen
+            ? $"Door: Opening {(int)(OpenAmount * 100f)}%"
+            : $"Door: Closing {(int)(OpenAmount * 100f)}%";
     }
 }
 
-public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
+public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractableSource
 {
     private const float OpenSpeed = 2f;
     private const float LockDeniedDuration = 1.75f;
@@ -99,6 +106,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
                 OpenAngle = MathF.Abs(MathUtil.DegToRad(def.OpenAngleDegrees)),
                 InteractRadius = def.InteractRadius,
                 ModelPath = def.ModelPath,
+                RequiredItemId = def.RequiredItemId,
                 Locked = def.Locked
             });
 
@@ -119,12 +127,12 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
                     focused.LockDeniedTime = 0f;
                 }
 
-                if (input.LockPressed)
+                if (input.LockPressed && !focused.IsOpen && focused.OpenAmount < 0.01f)
                 {
                     focused.Locked = true;
                 }
 
-                world.UsePrompt = focused.Prompt;
+                world.UsePrompt = focused.GetPrompt(HasRequiredItem(world, focused));
             }
         }
 
@@ -138,9 +146,17 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
 
             if (door.Locked && !door.IsOpen)
             {
-                door.LockDeniedTime = LockDeniedDuration;
-                world.UsePrompt = door.Prompt;
-                continue;
+                if (HasRequiredItem(world, door))
+                {
+                    door.Locked = false;
+                    door.LockDeniedTime = 0f;
+                }
+                else
+                {
+                    door.LockDeniedTime = LockDeniedDuration;
+                    world.UsePrompt = door.GetPrompt(false);
+                    continue;
+                }
             }
 
             door.IsOpen = !door.IsOpen;
@@ -253,9 +269,9 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
         _doors.Clear();
     }
 
-    public bool TryPickFocused(GameWorld world, out DoorState door)
+    public bool TryPickFocused(GameWorld world, out InteractableHit hit)
     {
-        door = null!;
+        hit = default;
         var origin = world.PlayerPosition;
         var forward = MathUtil.ForwardFromYawPitch(world.PlayerYaw, world.PlayerPitch);
 
@@ -288,9 +304,12 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster
             return false;
         }
 
-        door = best;
+        hit = new InteractableHit(best.Id, best.GetPrompt(HasRequiredItem(world, best)), bestDistance);
         return true;
     }
+
+    private static bool HasRequiredItem(GameWorld world, DoorState door) =>
+        door.RequiresItem && InventoryFeature.Has(world, door.RequiredItemId!);
 
     private void DrawDoor(DoorState door, bool focused)
     {

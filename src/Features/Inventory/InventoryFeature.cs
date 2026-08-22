@@ -8,6 +8,7 @@ public static class ItemId
 {
     public const string BadgeSpare = "badge_spare";
     public const string DriveFinanceDr = "drive_finance_dr";
+    public const string Keycard = "keycard";
 }
 
 public sealed class InventoryFeature : FeatureBase

@@ -1,3 +1,4 @@
+using ColdAudit.Features.Inventory;
 using ColdAudit.Shared.Assets;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.World;
@@ -121,7 +122,18 @@ public sealed class LevelLoadFeature : FeatureBase
             SectorId = "room_a",
             HingePosition = new System.Numerics.Vector3(-0.45f, 0f, -3.5f),
             ClosedYawDegrees = 0f,
-            Locked = false
+            Locked = true,
+            RequiredItemId = ItemId.Keycard
+        });
+
+        // Generated placeholder card on the floor in front of spawn (looking -Z). Swap ModelPath later.
+        level.Keycards.Add(new KeycardDef
+        {
+            Id = "pickup_keycard",
+            ItemId = ItemId.Keycard,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0.55f, 0.012f, -1.2f),
+            YawDegrees = 35f
         });
         // Raylib basic PBR example car, in front of spawn (looking -Z).
         var carPath = ModelCatalog.OldCarGlbPath;

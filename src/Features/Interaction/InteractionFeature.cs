@@ -1,4 +1,3 @@
-using ColdAudit.Features.DoorsAccess;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
 using ColdAudit.Shared.World;
@@ -7,11 +6,11 @@ namespace ColdAudit.Features.Interaction;
 
 public sealed class InteractionFeature : FeatureBase
 {
-    private readonly DoorsAccessFeature _doors;
+    private readonly IInteractableSource[] _sources;
 
-    public InteractionFeature(DoorsAccessFeature doors)
+    public InteractionFeature(params IInteractableSource[] sources)
     {
-        _doors = doors;
+        _sources = sources;
     }
 
     public override void Update(float dt, GameWorld world, InputState input, EventBus events)
@@ -19,10 +18,24 @@ public sealed class InteractionFeature : FeatureBase
         world.FocusedInteractableId = null;
         world.UsePrompt = string.Empty;
 
-        if (_doors.TryPickFocused(world, out var door))
+        InteractableHit? best = null;
+        foreach (var source in _sources)
         {
-            world.FocusedInteractableId = door.Id;
-            world.UsePrompt = door.Prompt;
+            if (!source.TryPickFocused(world, out var hit))
+            {
+                continue;
+            }
+
+            if (best is null || hit.Distance < best.Value.Distance)
+            {
+                best = hit;
+            }
+        }
+
+        if (best is { } focused)
+        {
+            world.FocusedInteractableId = focused.Id;
+            world.UsePrompt = focused.Prompt;
         }
 
         if (input.UsePressed && world.FocusedInteractableId is { } id)
