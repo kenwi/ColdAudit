@@ -22,6 +22,7 @@ public sealed class DoorState
     public float InteractRadius { get; init; } = 2.5f;
     public string? ModelPath { get; init; }
     public string? RequiredItemId { get; init; }
+    public Color Color { get; init; }
     public bool Locked { get; set; }
     public bool IsOpen { get; set; }
     public float OpenAmount { get; set; }
@@ -75,17 +76,17 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
     private const float OpenSpeed = 2f;
     private const float LockDeniedDuration = 1.75f;
     private static readonly Color DoorFill = new(118, 82, 48, 255);
-    private static readonly Color DoorFillFocused = new(168, 124, 72, 255);
-    private static readonly Color DoorWire = new(42, 28, 16, 255);
 
     private readonly List<DoorState> _doors = [];
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
+    private readonly LitBoxMesh _placeholder = new();
 
     public IReadOnlyList<DoorState> Doors => _doors;
 
     public override void Load(GameWorld world, EventBus events)
     {
         _doors.Clear();
+        _placeholder.Load();
         var level = world.ActiveLevel;
         if (level is null)
         {
@@ -107,6 +108,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
                 InteractRadius = def.InteractRadius,
                 ModelPath = def.ModelPath,
                 RequiredItemId = def.RequiredItemId,
+                Color = def.Color,
                 Locked = def.Locked
             });
 
@@ -192,6 +194,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
         }
 
         EnsureModelLighting(world);
+        _placeholder.EnsureLighting(world.Lighting);
 
         Raylib.BeginMode3D(world.Draw.Camera);
 
@@ -205,8 +208,8 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
             DrawDoor(door, world.FocusedInteractableId == door.Id);
         }
 
-        var lighting = world.Lighting is { IsLoaded: true } lit ? lit : null;
-        var useLighting = lighting is not null && lighting.TryBeginShaderMode();
+        world.Lighting?.RestorePbrDrawDefaults();
+        world.Lighting?.SetAlbedoMapEnabled(false);
 
         foreach (var door in _doors)
         {
@@ -218,11 +221,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
             DrawDoor(door, world.FocusedInteractableId == door.Id);
         }
 
-        if (useLighting)
-        {
-            lighting!.EndShaderMode();
-        }
-
+        world.Lighting?.RestorePbrDrawDefaults();
         Raylib.EndMode3D();
     }
 
@@ -267,6 +266,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
 
         _handlesByPath.Clear();
         _doors.Clear();
+        _placeholder.Unload();
     }
 
     public bool TryPickFocused(GameWorld world, out InteractableHit hit)
@@ -325,15 +325,26 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
             return;
         }
 
-        var fill = focused ? DoorFillFocused : DoorFill;
-        Rlgl.PushMatrix();
-        Rlgl.Translatef(door.HingePosition.X, door.HingePosition.Y, door.HingePosition.Z);
-        Rlgl.Rotatef(MathUtil.RadToDeg(door.CurrentYaw), 0f, 1f, 0f);
-        Rlgl.Translatef(door.Width * 0.5f, door.Height * 0.5f, 0f);
-        Raylib.DrawCube(Vector3.Zero, door.Width, door.Height, door.Thickness, fill);
-        Raylib.DrawCubeWires(Vector3.Zero, door.Width, door.Height, door.Thickness, DoorWire);
-        Rlgl.PopMatrix();
+        var fill = focused ? Lighten(ResolveFill(door)) : ResolveFill(door);
+        var localCenter = Vector3.Transform(
+            new Vector3(door.Width * 0.5f, door.Height * 0.5f, 0f),
+            Matrix4x4.CreateRotationY(door.CurrentYaw));
+        _placeholder.Draw(
+            door.HingePosition + localCenter,
+            new Vector3(door.Width, door.Height, door.Thickness),
+            MathUtil.RadToDeg(door.CurrentYaw),
+            fill);
     }
+
+    private static Color ResolveFill(DoorState door) =>
+        door.Color.A == 0 ? DoorFill : door.Color;
+
+    private static Color Lighten(Color color) =>
+        new(
+            (byte)Math.Min(255, color.R + 48),
+            (byte)Math.Min(255, color.G + 48),
+            (byte)Math.Min(255, color.B + 48),
+            color.A);
 
     private bool TryRaycast(DoorState door, Vector3 origin, Vector3 direction, out float distance)
     {

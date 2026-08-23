@@ -115,6 +115,10 @@ public sealed class LevelLoadFeature : FeatureBase
             CollisionMeshPath = portalBd
         });
 
+        // Paired placeholder tints: card color matches the door it unlocks.
+        var accessBlue = new Raylib_cs.Color(36, 92, 188, 255);
+        var accessOrange = new Raylib_cs.Color(212, 96, 28, 255);
+
         // Placeholder box doors. Hinge is the pivot; swap in ModelPath later (origin at hinge).
         level.Doors.Add(new DoorDef
         {
@@ -123,17 +127,28 @@ public sealed class LevelLoadFeature : FeatureBase
             HingePosition = new System.Numerics.Vector3(-0.45f, 0f, -3.5f),
             ClosedYawDegrees = 0f,
             Locked = true,
-            RequiredItemId = ItemId.Keycard
+            RequiredItemId = ItemId.KeycardBlue,
+            Color = accessBlue
         });
 
-        // Generated placeholder card on the floor in front of spawn (looking -Z). Swap ModelPath later.
+        // Generated placeholder cards on the floor in front of spawn (looking -Z). Swap ModelPath later.
         level.Keycards.Add(new KeycardDef
         {
-            Id = "pickup_keycard",
-            ItemId = ItemId.Keycard,
+            Id = "pickup_keycard_blue",
+            ItemId = ItemId.KeycardBlue,
             SectorId = "room_a",
-            Position = new System.Numerics.Vector3(0.55f, 0.012f, -1.2f),
-            YawDegrees = 35f
+            Position = new System.Numerics.Vector3(-0.55f, 0.012f, -1.15f),
+            YawDegrees = -25f,
+            Color = accessBlue
+        });
+        level.Keycards.Add(new KeycardDef
+        {
+            Id = "pickup_keycard_orange",
+            ItemId = ItemId.KeycardOrange,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0.65f, 0.012f, -1.25f),
+            YawDegrees = 35f,
+            Color = accessOrange
         });
         // Raylib basic PBR example car, in front of spawn (looking -Z).
         var carPath = ModelCatalog.OldCarGlbPath;
@@ -164,7 +179,9 @@ public sealed class LevelLoadFeature : FeatureBase
             SectorId = "room_a",
             HingePosition = new System.Numerics.Vector3(4.47f, 0f, -13.5f),
             ClosedYawDegrees = 0f,
-            Locked = false
+            Locked = true,
+            RequiredItemId = ItemId.KeycardOrange,
+            Color = accessOrange
         });
 
         AddTestLights(level);

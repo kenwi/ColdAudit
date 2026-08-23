@@ -33,6 +33,7 @@ public sealed class BasicLighting : IDisposable
     private int _useTexNormalLoc = -1;
     private int _useTexMRALoc = -1;
     private int _useTexEmissiveLoc = -1;
+    private int _albedoColorLoc = -1;
     private int _lightVolumeCountLoc = -1;
     private int _volumePlaneCountLoc = -1;
     private int _volumePlanesLoc = -1;
@@ -288,6 +289,24 @@ public sealed class BasicLighting : IDisposable
         Raylib.EndShaderMode();
     }
 
+    /// <summary>
+    /// Immediate-mode cubes have no albedo map. Disable sampling so vertex/albedo color is the tint.
+    /// Restore with <see cref="SetAlbedoMapEnabled"/> true after the pass.
+    /// </summary>
+    public void SetAlbedoMapEnabled(bool enabled)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        Raylib.SetShaderValue(
+            _shader,
+            _useTexAlbedoLoc,
+            enabled && _pbrTexturesEnabled ? 1 : 0,
+            ShaderUniformDataType.Int);
+    }
+
     public void ApplyToModel(ModelHandle handle)
     {
         if (!IsLoaded || !handle.IsLoaded)
@@ -448,6 +467,7 @@ public sealed class BasicLighting : IDisposable
         _useTexNormalLoc = -1;
         _useTexMRALoc = -1;
         _useTexEmissiveLoc = -1;
+        _albedoColorLoc = -1;
         _lightVolumeCountLoc = -1;
         _volumePlaneCountLoc = -1;
         _volumePlanesLoc = -1;
@@ -474,6 +494,7 @@ public sealed class BasicLighting : IDisposable
         _shader.Locs[(int)ShaderLocationIndex.VectorView] = Raylib.GetShaderLocation(_shader, "viewPos");
 
         _viewPosLoc = _shader.Locs[(int)ShaderLocationIndex.VectorView];
+        _albedoColorLoc = _shader.Locs[(int)ShaderLocationIndex.ColorDiffuse];
         _ambientLoc = Raylib.GetShaderLocation(_shader, "ambient");
         _ambientColorLoc = Raylib.GetShaderLocation(_shader, "ambientColor");
         _metallicValueLoc = Raylib.GetShaderLocation(_shader, "metallicValue");
@@ -510,6 +531,9 @@ public sealed class BasicLighting : IDisposable
         Raylib.SetShaderValue(_shader, _tilingLoc, new Vector2(0.5f, 0.5f), ShaderUniformDataType.Vec2);
 
         PushTextureUsage(useNormal: false, useMra: false, useEmissive: false);
+
+        var albedoWhite = new Vector4(1f, 1f, 1f, 1f);
+        Raylib.SetShaderValue(_shader, _albedoColorLoc, albedoWhite, ShaderUniformDataType.Vec4);
 
         Raylib.SetShaderValue(_shader, _metallicValueLoc, 0f, ShaderUniformDataType.Float);
         Raylib.SetShaderValue(_shader, _roughnessValueLoc, 0.5f, ShaderUniformDataType.Float);

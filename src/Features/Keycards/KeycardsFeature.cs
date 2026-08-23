@@ -20,6 +20,7 @@ public sealed class KeycardState
     public float Depth { get; init; } = 0.115f;
     public float InteractRadius { get; init; } = 2f;
     public string? ModelPath { get; init; }
+    public Color Color { get; init; }
     public bool PickedUp { get; set; }
 
     public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
@@ -29,19 +30,19 @@ public sealed class KeycardState
 
 public sealed class KeycardsFeature : FeatureBase, IInteractableSource
 {
-    private static readonly Color CardFill = new(28, 68, 132, 255);
-    private static readonly Color CardFillFocused = new(72, 128, 204, 255);
-    private static readonly Color CardWire = new(12, 24, 48, 255);
+    private static readonly Color CardFill = new(36, 92, 188, 255);
     private static readonly Color ChipFill = new(212, 175, 55, 255);
 
     private readonly List<KeycardState> _cards = [];
     private readonly Dictionary<string, ModelHandle> _handlesByPath = new(StringComparer.Ordinal);
+    private readonly LitBoxMesh _placeholder = new();
 
     public IReadOnlyList<KeycardState> Cards => _cards;
 
     public override void Load(GameWorld world, EventBus events)
     {
         _cards.Clear();
+        _placeholder.Load();
         var level = world.ActiveLevel;
         if (level is null)
         {
@@ -61,7 +62,8 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
                 Height = def.Height,
                 Depth = def.Depth,
                 InteractRadius = def.InteractRadius,
-                ModelPath = def.ModelPath
+                ModelPath = def.ModelPath,
+                Color = def.Color
             });
 
             TryLoadModel(world, def.ModelPath);
@@ -108,6 +110,7 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
         }
 
         EnsureModelLighting(world);
+        _placeholder.EnsureLighting(world.Lighting);
 
         Raylib.BeginMode3D(world.Draw.Camera);
 
@@ -121,8 +124,8 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
             DrawCard(card, world.FocusedInteractableId == card.Id);
         }
 
-        var lighting = world.Lighting is { IsLoaded: true } lit ? lit : null;
-        var useLighting = lighting is not null && lighting.TryBeginShaderMode();
+        world.Lighting?.RestorePbrDrawDefaults();
+        world.Lighting?.SetAlbedoMapEnabled(false);
 
         foreach (var card in _cards)
         {
@@ -134,11 +137,7 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
             DrawCard(card, world.FocusedInteractableId == card.Id);
         }
 
-        if (useLighting)
-        {
-            lighting!.EndShaderMode();
-        }
-
+        world.Lighting?.RestorePbrDrawDefaults();
         Raylib.EndMode3D();
     }
 
@@ -152,6 +151,7 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
 
         _handlesByPath.Clear();
         _cards.Clear();
+        _placeholder.Unload();
     }
 
     public bool TryPickFocused(GameWorld world, out InteractableHit hit)
@@ -207,19 +207,34 @@ public sealed class KeycardsFeature : FeatureBase, IInteractableSource
             return;
         }
 
-        var fill = focused ? CardFillFocused : CardFill;
-        Rlgl.PushMatrix();
-        Rlgl.Translatef(card.Position.X, card.Position.Y, card.Position.Z);
-        Rlgl.Rotatef(MathUtil.RadToDeg(card.Yaw), 0f, 1f, 0f);
-        Rlgl.Translatef(0f, card.Height * 0.5f, 0f);
-        Raylib.DrawCube(Vector3.Zero, card.Width, card.Height, card.Depth, fill);
-        Raylib.DrawCubeWires(Vector3.Zero, card.Width, card.Height, card.Depth, CardWire);
+        var fill = focused ? Lighten(ResolveFill(card)) : ResolveFill(card);
+        var yaw = MathUtil.RadToDeg(card.Yaw);
+        var bodyCenter = card.Position + new Vector3(0f, card.Height * 0.5f, 0f);
+        _placeholder.Draw(
+            bodyCenter,
+            new Vector3(card.Width, card.Height, card.Depth),
+            yaw,
+            fill);
 
-        // Gold chip so the placeholder reads as a keycard until a GLB replaces it.
-        Rlgl.Translatef(-card.Width * 0.28f, card.Height * 0.5f + 0.0015f, card.Depth * 0.12f);
-        Raylib.DrawCube(Vector3.Zero, 0.028f, 0.003f, 0.022f, ChipFill);
-        Rlgl.PopMatrix();
+        var chipOffset = Vector3.Transform(
+            new Vector3(-card.Width * 0.28f, card.Height * 0.5f + 0.0015f, card.Depth * 0.12f),
+            Matrix4x4.CreateRotationY(card.Yaw));
+        _placeholder.Draw(
+            bodyCenter + chipOffset,
+            new Vector3(0.028f, 0.003f, 0.022f),
+            yaw,
+            ChipFill);
     }
+
+    private static Color ResolveFill(KeycardState card) =>
+        card.Color.A == 0 ? CardFill : card.Color;
+
+    private static Color Lighten(Color color) =>
+        new(
+            (byte)Math.Min(255, color.R + 48),
+            (byte)Math.Min(255, color.G + 48),
+            (byte)Math.Min(255, color.B + 48),
+            color.A);
 
     private bool TryRaycast(KeycardState card, Vector3 origin, Vector3 direction, out float distance)
     {

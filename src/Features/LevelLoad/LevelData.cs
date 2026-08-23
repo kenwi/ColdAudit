@@ -191,6 +191,11 @@ public sealed class DoorDef
     public string? RequiredItemId { get; init; }
 
     /// <summary>
+    /// Placeholder tint. Alpha 0 keeps the default wood color. Match the paired keycard.
+    /// </summary>
+    public Color Color { get; init; }
+
+    /// <summary>
     /// Optional GLB. Null/empty draws the placeholder box. Model origin should be the hinge.
     /// </summary>
     public string? ModelPath { get; init; }
@@ -214,6 +219,11 @@ public sealed class KeycardDef
     public float Height { get; init; } = 0.012f;
     public float Depth { get; init; } = 0.115f;
     public float InteractRadius { get; init; } = 2f;
+
+    /// <summary>
+    /// Placeholder tint. Match the door this card unlocks. Alpha 0 uses the default blue.
+    /// </summary>
+    public Color Color { get; init; }
 
     /// <summary>
     /// Optional GLB. Null/empty draws the generated placeholder card.
