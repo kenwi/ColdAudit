@@ -241,6 +241,14 @@ public sealed class CameraDef
     public float SweepPhaseDegrees { get; init; }
 
     /// <summary>
+    /// When true, the player can look at the camera and press Use to disable it.
+    /// </summary>
+    public bool Interactable { get; init; }
+
+    /// <summary>Max player distance from the mount to interact.</summary>
+    public float InteractRadius { get; init; } = 3f;
+
+    /// <summary>
     /// Optional GLB for the full assembly. Null/empty draws the plate/leg/body placeholder.
     /// Model origin should sit at the mount plate center, +Z out from the wall.
     /// </summary>

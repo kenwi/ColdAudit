@@ -194,10 +194,12 @@ public sealed class LevelLoadFeature : FeatureBase
             PitchDegrees = -18f,
             HorizontalFovDegrees = 68f,
             VerticalFovDegrees = 40f,
-            FarPlane = 14f,
+            FarPlane = 8f,
             DetectRate = 0.4f,
+            InteractRadius = 3f,
             SweepYawDegrees = 38f,
-            SweepSpeedDegrees = 26f
+            SweepSpeedDegrees = 26f,
+            Interactable = true
         });
 
         AddTestLights(level);

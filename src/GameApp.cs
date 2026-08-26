@@ -137,7 +137,7 @@ public sealed class GameApp
         _features.Add(physics);
         _features.Add(new FullscreenFeature());
         _features.Add(new PlayerControllerFeature(physics));
-        _features.Add(new InteractionFeature(doors, keycards));
+        _features.Add(new InteractionFeature(doors, keycards, cameras));
         _features.Add(keycards);
         _features.Add(new InventoryFeature());
         _features.Add(doors);
