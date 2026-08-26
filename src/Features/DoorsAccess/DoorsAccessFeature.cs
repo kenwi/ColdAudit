@@ -269,6 +269,38 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
         _placeholder.Unload();
     }
 
+    /// <summary>
+    /// Closest door slab hit between <paramref name="origin"/> and <paramref name="target"/>.
+    /// Used for camera LOS; doors are not Box3D bodies.
+    /// </summary>
+    public bool TryGetOcclusionHit(Vector3 origin, Vector3 target, out float distance)
+    {
+        distance = float.MaxValue;
+        var delta = target - origin;
+        var maxDistance = delta.Length();
+        if (maxDistance < 1e-5f)
+        {
+            return false;
+        }
+
+        var direction = delta / maxDistance;
+        var hit = false;
+        foreach (var door in _doors)
+        {
+            if (!TryRaycast(door, origin, direction, out var doorDistance) ||
+                doorDistance >= maxDistance ||
+                doorDistance >= distance)
+            {
+                continue;
+            }
+
+            hit = true;
+            distance = doorDistance;
+        }
+
+        return hit;
+    }
+
     public bool TryPickFocused(GameWorld world, out InteractableHit hit)
     {
         hit = default;

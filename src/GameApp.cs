@@ -129,8 +129,9 @@ public sealed class GameApp
         var levelProps = new LevelPropsFeature();
         var doors = new DoorsAccessFeature();
         var keycards = new KeycardsFeature();
+        var cameras = new CamerasFeature(physics, doors);
         // Shadow casters are drawn once per cubemap face, before the main pass.
-        var shadows = new ShadowMapFeature([levelModels, levelProps, doors]);
+        var shadows = new ShadowMapFeature([levelModels, levelProps, doors, cameras]);
 
         _features.Add(new LevelLoadFeature());
         _features.Add(physics);
@@ -140,7 +141,7 @@ public sealed class GameApp
         _features.Add(keycards);
         _features.Add(new InventoryFeature());
         _features.Add(doors);
-        _features.Add(new CamerasFeature());
+        _features.Add(cameras);
         _features.Add(new WorkstationsFeature());
         _features.Add(new DetectionHeatFeature());
         _features.Add(new ObjectiveExfilFeature());

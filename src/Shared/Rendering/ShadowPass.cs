@@ -128,19 +128,22 @@ public sealed class ShadowPass : IDisposable
             return;
         }
 
-        var transform = ComposeTransform(position, yawDegrees, new Vector3(scale, scale, scale));
+        var transform = ComposeTransform(position, yawDegrees, 0f, new Vector3(scale, scale, scale));
         DrawMeshes(model, Raymath.MatrixMultiply(model.Transform, transform));
     }
 
     /// <summary>Box caster for geometry that is normally drawn in immediate mode.</summary>
-    public void DrawBox(Vector3 center, Vector3 size, float yawDegrees)
+    public void DrawBox(Vector3 center, Vector3 size, float yawDegrees) =>
+        DrawBox(center, size, yawDegrees, 0f);
+
+    public void DrawBox(Vector3 center, Vector3 size, float yawDegrees, float pitchDegrees)
     {
         if (!IsLoaded || !_unitCubeLoaded)
         {
             return;
         }
 
-        Raylib.DrawMesh(_unitCube, _material, ComposeTransform(center, yawDegrees, size));
+        Raylib.DrawMesh(_unitCube, _material, ComposeTransform(center, yawDegrees, pitchDegrees, size));
     }
 
     public void DrawMesh(Mesh mesh, Matrix4x4 transform)
@@ -164,10 +167,17 @@ public sealed class ShadowPass : IDisposable
 
     // Raylib matrices use the opposite storage convention to System.Numerics, so compose
     // with Raymath rather than Matrix4x4.CreateTranslation and friends.
-    private static Matrix4x4 ComposeTransform(Vector3 position, float yawDegrees, Vector3 scale)
+    // DrawMesh applies v * M, so S * Pitch * Yaw * T = local pitch then world yaw.
+    private static Matrix4x4 ComposeTransform(
+        Vector3 position,
+        float yawDegrees,
+        float pitchDegrees,
+        Vector3 scale)
     {
         var matScale = Raymath.MatrixScale(scale.X, scale.Y, scale.Z);
-        var matRotation = Raymath.MatrixRotate(Vector3.UnitY, yawDegrees * MathF.PI / 180f);
+        var matPitch = Raymath.MatrixRotate(Vector3.UnitX, -pitchDegrees * MathF.PI / 180f);
+        var matYaw = Raymath.MatrixRotate(Vector3.UnitY, yawDegrees * MathF.PI / 180f);
+        var matRotation = Raymath.MatrixMultiply(matPitch, matYaw);
         var matTranslation = Raymath.MatrixTranslate(position.X, position.Y, position.Z);
         return Raymath.MatrixMultiply(Raymath.MatrixMultiply(matScale, matRotation), matTranslation);
     }

@@ -31,7 +31,10 @@ public sealed class LitBoxMesh : IDisposable
     public void EnsureLighting(BasicLighting? lighting) =>
         lighting?.ApplyToMaterial(ref _material);
 
-    public unsafe void Draw(Vector3 center, Vector3 size, float yawDegrees, Color color)
+    public unsafe void Draw(Vector3 center, Vector3 size, float yawDegrees, Color color) =>
+        Draw(center, size, yawDegrees, 0f, color);
+
+    public unsafe void Draw(Vector3 center, Vector3 size, float yawDegrees, float pitchDegrees, Color color)
     {
         if (!IsLoaded)
         {
@@ -39,7 +42,7 @@ public sealed class LitBoxMesh : IDisposable
         }
 
         _material.Maps[(int)MaterialMapIndex.Albedo].Color = color;
-        Raylib.DrawMesh(_cube, _material, ComposeTransform(center, yawDegrees, size));
+        Raylib.DrawMesh(_cube, _material, ComposeTransform(center, yawDegrees, pitchDegrees, size));
     }
 
     public void Unload()
@@ -61,10 +64,18 @@ public sealed class LitBoxMesh : IDisposable
     public void Dispose() => Unload();
 
     // Raylib matrices use the opposite storage convention to System.Numerics.
-    private static Matrix4x4 ComposeTransform(Vector3 position, float yawDegrees, Vector3 scale)
+    // DrawMesh applies v * M, so S * Pitch * Yaw * T = local pitch then world yaw
+    // (same look basis as MathUtil.ForwardFromYawPitch).
+    private static Matrix4x4 ComposeTransform(
+        Vector3 position,
+        float yawDegrees,
+        float pitchDegrees,
+        Vector3 scale)
     {
         var matScale = Raymath.MatrixScale(scale.X, scale.Y, scale.Z);
-        var matRotation = Raymath.MatrixRotate(Vector3.UnitY, yawDegrees * MathF.PI / 180f);
+        var matPitch = Raymath.MatrixRotate(Vector3.UnitX, -pitchDegrees * MathF.PI / 180f);
+        var matYaw = Raymath.MatrixRotate(Vector3.UnitY, yawDegrees * MathF.PI / 180f);
+        var matRotation = Raymath.MatrixMultiply(matPitch, matYaw);
         var matTranslation = Raymath.MatrixTranslate(position.X, position.Y, position.Z);
         return Raymath.MatrixMultiply(Raymath.MatrixMultiply(matScale, matRotation), matTranslation);
     }

@@ -110,6 +110,59 @@ public sealed class PhysicsFeature : FeatureBase
     }
 
     /// <summary>
+    /// Closest hit along <paramref name="origin"/> → origin+<paramref name="translation"/>.
+    /// <paramref name="fraction"/> is 0..1 along that segment.
+    /// </summary>
+    public bool TryCastRayClosest(
+        Vector3 origin,
+        Vector3 translation,
+        out float fraction,
+        out Vector3 point)
+    {
+        fraction = 1f;
+        point = origin + translation;
+        if (_world is null)
+        {
+            return false;
+        }
+
+        var hit = _world.CastRayClosest(
+            ToPos(origin),
+            new B3Vec3(translation.X, translation.Y, translation.Z),
+            _filter);
+        if (hit.Hit == 0)
+        {
+            return false;
+        }
+
+        fraction = hit.Fraction;
+        point = ToVector3(hit.Point);
+        return true;
+    }
+
+    /// <summary>
+    /// True when nothing in the static collision world sits between origin and target.
+    /// </summary>
+    public bool HasClearLineOfSight(Vector3 origin, Vector3 target, float endSkin = 0.08f)
+    {
+        var delta = target - origin;
+        var distance = delta.Length();
+        if (distance <= endSkin)
+        {
+            return true;
+        }
+
+        // Stop short of the target so geometry at the destination does not count as a block.
+        var cast = delta * ((distance - endSkin) / distance);
+        if (!TryCastRayClosest(origin, cast, out var fraction, out _))
+        {
+            return true;
+        }
+
+        return fraction >= 1f - 1e-4f;
+    }
+
+    /// <summary>
     /// Min plane normal Y to treat as walkable ground (~45°). Steeper faces are walls.
     /// </summary>
     public const float WalkableNormalMinY = 0.7f;

@@ -89,6 +89,38 @@ public sealed class Frustum
             vp.M44 - vp.M43)); // far
     }
 
+    /// <summary>
+    /// Build a camera frustum from independent horizontal and vertical field-of-view angles.
+    /// </summary>
+    public void UpdateFromFovHV(
+        Vector3 position,
+        Vector3 forward,
+        Vector3 up,
+        float fovHDegrees,
+        float fovVDegrees,
+        float near,
+        float far)
+    {
+        var halfH = MathUtil.DegToRad(MathF.Max(fovHDegrees, 0.1f) * 0.5f);
+        var halfV = MathUtil.DegToRad(MathF.Max(fovVDegrees, 0.1f) * 0.5f);
+        var aspect = MathF.Tan(halfH) / MathF.Tan(halfV);
+        UpdateFromCamera(position, forward, up, fovVDegrees, aspect, near, far);
+    }
+
+    /// <summary>True when the point is inside (positive side of every plane).</summary>
+    public bool ContainsPoint(Vector3 point)
+    {
+        for (var i = 0; i < _planeCount; i++)
+        {
+            if (Distance(_planes[i], point) < 0f)
+            {
+                return false;
+            }
+        }
+
+        return _planeCount > 0;
+    }
+
     public bool IntersectsAabb(Aabb aabb)
     {
         for (var i = 0; i < _planeCount; i++)

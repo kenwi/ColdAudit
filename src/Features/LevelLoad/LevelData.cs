@@ -15,6 +15,7 @@ public sealed class LevelData
     public List<ModelPlacementDef> ModelPlacements { get; } = [];
     public List<DoorDef> Doors { get; } = [];
     public List<KeycardDef> Keycards { get; } = [];
+    public List<CameraDef> Cameras { get; } = [];
     public List<LightDef> Lights { get; } = [];
 }
 
@@ -202,6 +203,50 @@ public sealed class DoorDef
 
     public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
     public bool RequiresItem => !string.IsNullOrWhiteSpace(RequiredItemId);
+}
+
+/// <summary>
+/// Wall-mounted security camera. <see cref="MountPosition"/> is the plate center on the wall.
+/// <see cref="MountYawDegrees"/> faces into the room (camera look when sweep is centered).
+/// Placeholder draws plate + leg + body until <see cref="ModelPath"/> is set.
+/// </summary>
+public sealed class CameraDef
+{
+    public string Id { get; init; } = string.Empty;
+    public string SectorId { get; init; } = string.Empty;
+
+    /// <summary>Center of the wall mounting plate.</summary>
+    public Vector3 MountPosition { get; init; }
+
+    /// <summary>Facing into the room when the sweep is centered (degrees).</summary>
+    public float MountYawDegrees { get; init; }
+
+    /// <summary>Look pitch in degrees. Negative tilts the lens toward the floor.</summary>
+    public float PitchDegrees { get; init; } = -12f;
+
+    public float HorizontalFovDegrees { get; init; } = 70f;
+    public float VerticalFovDegrees { get; init; } = 42f;
+    public float NearPlane { get; init; } = 0.2f;
+    public float FarPlane { get; init; } = 16f;
+
+    /// <summary>Heat added per second while the player is inside the frustum.</summary>
+    public float DetectRate { get; init; } = 0.35f;
+
+    /// <summary>Half-amplitude of the left/right yaw sweep in degrees.</summary>
+    public float SweepYawDegrees { get; init; } = 40f;
+
+    /// <summary>Sweep angular speed in degrees per second (sine cycle).</summary>
+    public float SweepSpeedDegrees { get; init; } = 28f;
+
+    public float SweepPhaseDegrees { get; init; }
+
+    /// <summary>
+    /// Optional GLB for the full assembly. Null/empty draws the plate/leg/body placeholder.
+    /// Model origin should sit at the mount plate center, +Z out from the wall.
+    /// </summary>
+    public string? ModelPath { get; init; }
+
+    public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
 }
 
 /// <summary>

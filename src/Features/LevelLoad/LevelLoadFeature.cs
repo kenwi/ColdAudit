@@ -184,6 +184,22 @@ public sealed class LevelLoadFeature : FeatureBase
             Color = accessOrange
         });
 
+        // Wall cam overlooking spawn. Plate on the +X wall; lens sweeps across the room.
+        level.Cameras.Add(new CameraDef
+        {
+            Id = "cam_room_a_east",
+            SectorId = "room_a",
+            MountPosition = new System.Numerics.Vector3(7.10f, 2.7f, -5.0f),
+            MountYawDegrees = -90f,
+            PitchDegrees = -18f,
+            HorizontalFovDegrees = 68f,
+            VerticalFovDegrees = 40f,
+            FarPlane = 14f,
+            DetectRate = 0.4f,
+            SweepYawDegrees = 38f,
+            SweepSpeedDegrees = 26f
+        });
+
         AddTestLights(level);
 
         return level;
