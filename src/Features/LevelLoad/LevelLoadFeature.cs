@@ -118,6 +118,7 @@ public sealed class LevelLoadFeature : FeatureBase
         // Paired placeholder tints: card color matches the door it unlocks.
         var accessBlue = new Raylib_cs.Color(36, 92, 188, 255);
         var accessOrange = new Raylib_cs.Color(212, 96, 28, 255);
+        var accessGreen = new Raylib_cs.Color(42, 148, 78, 255);
 
         // Placeholder box doors. Hinge is the pivot; swap in ModelPath later (origin at hinge).
         level.Doors.Add(new DoorDef
@@ -129,6 +130,23 @@ public sealed class LevelLoadFeature : FeatureBase
             Locked = true,
             RequiredItemId = ItemId.KeycardBlue,
             Color = accessBlue
+        });
+
+        // Elevator-style double door: leaves slide apart along local X from the doorway center.
+        level.Doors.Add(new DoorDef
+        {
+            Id = "door_slide_a",
+            SectorId = "room_a",
+            Motion = DoorMotion.SlidingDouble,
+            HingePosition = new System.Numerics.Vector3(2.2f, 0f, -4.2f),
+            ClosedYawDegrees = 90f,
+            Width = 1.8f,
+            Height = 2.5f,
+            Locked = true,
+            RequiredItemId = ItemId.KeycardGreen,
+            AutoClose = true,
+            AutoCloseSeconds = 4f,
+            Color = accessGreen
         });
 
         // Generated placeholder cards on the floor in front of spawn (looking -Z). Swap ModelPath later.
@@ -149,6 +167,15 @@ public sealed class LevelLoadFeature : FeatureBase
             Position = new System.Numerics.Vector3(0.65f, 0.012f, -1.25f),
             YawDegrees = 35f,
             Color = accessOrange
+        });
+        level.Keycards.Add(new KeycardDef
+        {
+            Id = "pickup_keycard_green",
+            ItemId = ItemId.KeycardGreen,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0.05f, 0.012f, -1.55f),
+            YawDegrees = 10f,
+            Color = accessGreen
         });
         // Raylib basic PBR example car, in front of spawn (looking -Z).
         var carPath = ModelCatalog.OldCarGlbPath;

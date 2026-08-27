@@ -170,21 +170,53 @@ public sealed class InteractableDef
 }
 
 /// <summary>
-/// Authored door. <see cref="HingePosition"/> is the floor pivot (model origin later).
-/// Local +X is width away from the hinge, +Y is up, thickness is along local Z.
+/// Authored door. <see cref="HingePosition"/> is the floor pivot for swing doors, or the
+/// doorway center for <see cref="DoorMotion.SlidingDouble"/>.
+/// Local +X is along the door plane (width / slide), +Y is up, thickness is along local Z.
 /// </summary>
+public enum DoorMotion
+{
+    /// <summary>Single slab swings on a hinge.</summary>
+    Swing = 0,
+
+    /// <summary>Two leaves meet at the center and slide apart like elevator doors.</summary>
+    SlidingDouble = 1
+}
+
 public sealed class DoorDef
 {
     public string Id { get; init; } = string.Empty;
     public string SectorId { get; init; } = string.Empty;
+    public DoorMotion Motion { get; init; } = DoorMotion.Swing;
+
+    /// <summary>
+    /// Swing: hinge floor pivot. Sliding double: center of the closed doorway on the floor.
+    /// </summary>
     public Vector3 HingePosition { get; init; }
+
     public float ClosedYawDegrees { get; init; }
     public float Width { get; init; } = 1.5f;
     public float Height { get; init; } = 2.5f;
     public float Thickness { get; init; } = 0.08f;
     public float OpenAngleDegrees { get; init; } = 90f;
+
+    /// <summary>
+    /// How far each sliding leaf travels along local +X/-X. Zero defaults to half
+    /// <see cref="Width"/> (fully clears the opening).
+    /// </summary>
+    public float SlideDistance { get; init; }
+
     public float InteractRadius { get; init; } = 2.5f;
     public bool Locked { get; init; }
+
+    /// <summary>
+    /// When true, the door closes itself after staying fully open for
+    /// <see cref="AutoCloseSeconds"/>.
+    /// </summary>
+    public bool AutoClose { get; init; }
+
+    /// <summary>Seconds to wait fully open before auto-closing. Ignored unless <see cref="AutoClose"/>.</summary>
+    public float AutoCloseSeconds { get; init; } = 3f;
 
     /// <summary>
     /// Inventory item that unlocks this door. Null/empty means no key item (debug U still works).
@@ -197,7 +229,8 @@ public sealed class DoorDef
     public Color Color { get; init; }
 
     /// <summary>
-    /// Optional GLB. Null/empty draws the placeholder box. Model origin should be the hinge.
+    /// Optional GLB. Null/empty draws the placeholder box.
+    /// Swing: origin at the hinge. Sliding: origin at each leaf center.
     /// </summary>
     public string? ModelPath { get; init; }
 

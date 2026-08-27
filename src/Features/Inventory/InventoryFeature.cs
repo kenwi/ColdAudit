@@ -10,6 +10,7 @@ public static class ItemId
     public const string DriveFinanceDr = "drive_finance_dr";
     public const string KeycardBlue = "keycard_blue";
     public const string KeycardOrange = "keycard_orange";
+    public const string KeycardGreen = "keycard_green";
 }
 
 public sealed class InventoryFeature : FeatureBase

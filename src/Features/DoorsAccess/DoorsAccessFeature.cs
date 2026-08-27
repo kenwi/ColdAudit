@@ -1,5 +1,6 @@
 using System.Numerics;
 using ColdAudit.Features.Inventory;
+using ColdAudit.Features.LevelLoad;
 using ColdAudit.Shared.Contracts;
 using ColdAudit.Shared.Input;
 using ColdAudit.Shared.Math;
@@ -13,12 +14,17 @@ public sealed class DoorState
 {
     public string Id { get; init; } = string.Empty;
     public string SectorId { get; init; } = string.Empty;
+    public DoorMotion Motion { get; init; } = DoorMotion.Swing;
+
+    /// <summary>Swing hinge, or sliding-doorway center, on the floor.</summary>
     public Vector3 HingePosition { get; init; }
+
     public float ClosedYaw { get; init; }
     public float Width { get; init; } = 1.5f;
     public float Height { get; init; } = 2.1f;
     public float Thickness { get; init; } = 0.08f;
     public float OpenAngle { get; init; } = MathF.PI * 0.5f;
+    public float SlideTravel { get; init; }
     public float InteractRadius { get; init; } = 2.5f;
     public string? ModelPath { get; init; }
     public string? RequiredItemId { get; init; }
@@ -28,16 +34,36 @@ public sealed class DoorState
     public float OpenAmount { get; set; }
     public float LockDeniedTime { get; set; }
 
-    /// <summary>+1 / -1. Chosen when opening so the slab swings away from the player.</summary>
+    /// <summary>When true, start an auto-close countdown after the door is fully open.</summary>
+    public bool AutoClose { get; init; }
+
+    /// <summary>Seconds fully open before auto-close fires.</summary>
+    public float AutoCloseSeconds { get; init; } = 3f;
+
+    /// <summary>Countdown while fully open; 0 when idle.</summary>
+    public float AutoCloseRemaining { get; set; }
+
+    /// <summary>True after the fully-open auto-close timer has been armed this open cycle.</summary>
+    public bool AutoCloseArmed { get; set; }
+
+    /// <summary>+1 / -1. Chosen when opening so a swing slab moves away from the player.</summary>
     public float SwingSign { get; set; } = 1f;
 
-    public float CurrentYaw => ClosedYaw + OpenAmount * OpenAngle * SwingSign;
+    public bool IsSlidingDouble => Motion == DoorMotion.SlidingDouble;
+
+    public float LeafWidth => Width * 0.5f;
+
+    public float CurrentYaw => IsSlidingDouble
+        ? ClosedYaw
+        : ClosedYaw + OpenAmount * OpenAngle * SwingSign;
 
     public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
     public bool RequiresItem => !string.IsNullOrWhiteSpace(RequiredItemId);
 
     public string GetPrompt(bool hasRequiredItem)
     {
+        var label = IsSlidingDouble ? "Double door" : "Door";
+
         if (LockDeniedTime > 0f)
         {
             return "Cannot open: locked";
@@ -48,26 +74,26 @@ public sealed class DoorState
             if (RequiresItem)
             {
                 return hasRequiredItem
-                    ? "Door: Locked  [E] Use keycard"
-                    : "Door: Locked";
+                    ? $"{label}: Locked  [E] Use keycard"
+                    : $"{label}: Locked";
             }
 
-            return "Door: Locked  [U] Unlock";
+            return $"{label}: Locked  [U] Unlock";
         }
 
         if (OpenAmount < 0.01f && !IsOpen)
         {
-            return "Door: Closed  [E] Open  [L] Lock";
+            return $"{label}: Closed  [E] Open  [L] Lock";
         }
 
         if (OpenAmount > 0.99f && IsOpen)
         {
-            return "Door: Open  [E] Close";
+            return $"{label}: Open  [E] Close";
         }
 
         return IsOpen
-            ? $"Door: Opening {(int)(OpenAmount * 100f)}%"
-            : $"Door: Closing {(int)(OpenAmount * 100f)}%";
+            ? $"{label}: Opening {(int)(OpenAmount * 100f)}%"
+            : $"{label}: Closing {(int)(OpenAmount * 100f)}%";
     }
 }
 
@@ -95,21 +121,26 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
 
         foreach (var def in level.Doors)
         {
+            var leafWidth = def.Width * 0.5f;
             _doors.Add(new DoorState
             {
                 Id = def.Id,
                 SectorId = def.SectorId,
+                Motion = def.Motion,
                 HingePosition = def.HingePosition,
                 ClosedYaw = MathUtil.DegToRad(def.ClosedYawDegrees),
                 Width = def.Width,
                 Height = def.Height,
                 Thickness = def.Thickness,
                 OpenAngle = MathF.Abs(MathUtil.DegToRad(def.OpenAngleDegrees)),
+                SlideTravel = def.SlideDistance > 1e-4f ? def.SlideDistance : leafWidth,
                 InteractRadius = def.InteractRadius,
                 ModelPath = def.ModelPath,
                 RequiredItemId = def.RequiredItemId,
                 Color = def.Color,
-                Locked = def.Locked
+                Locked = def.Locked,
+                AutoClose = def.AutoClose,
+                AutoCloseSeconds = MathF.Max(0f, def.AutoCloseSeconds)
             });
 
             TryLoadModel(world, def.ModelPath);
@@ -162,7 +193,12 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
             }
 
             door.IsOpen = !door.IsOpen;
-            if (door.IsOpen && door.OpenAmount < 0.01f)
+            if (!door.IsOpen)
+            {
+                door.AutoCloseArmed = false;
+                door.AutoCloseRemaining = 0f;
+            }
+            else if (door.OpenAmount < 0.01f && !door.IsSlidingDouble)
             {
                 door.SwingSign = SwingAwayFromPlayer(world.PlayerPosition, door);
             }
@@ -175,15 +211,48 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
                 door.LockDeniedTime = MathF.Max(0f, door.LockDeniedTime - dt);
             }
 
+            UpdateAutoClose(door, dt);
+
             var target = door.IsOpen ? 1f : 0f;
             var previous = door.OpenAmount;
             door.OpenAmount = MathUtil.MoveTowards(previous, target, OpenSpeed * dt);
             if (MathF.Abs(door.OpenAmount - previous) > 1e-5f)
             {
-                // A swinging slab changes what the lights can reach.
+                // Moving slabs change what the lights can reach.
                 world.InvalidateShadowGeometry();
             }
         }
+    }
+
+    private static void UpdateAutoClose(DoorState door, float dt)
+    {
+        if (!door.AutoClose || !door.IsOpen)
+        {
+            door.AutoCloseArmed = false;
+            door.AutoCloseRemaining = 0f;
+            return;
+        }
+
+        if (door.OpenAmount < 0.99f)
+        {
+            return;
+        }
+
+        if (!door.AutoCloseArmed)
+        {
+            door.AutoCloseArmed = true;
+            door.AutoCloseRemaining = door.AutoCloseSeconds;
+        }
+
+        door.AutoCloseRemaining -= dt;
+        if (door.AutoCloseRemaining > 0f)
+        {
+            return;
+        }
+
+        door.IsOpen = false;
+        door.AutoCloseArmed = false;
+        door.AutoCloseRemaining = 0f;
     }
 
     public override void Draw(GameWorld world)
@@ -226,7 +295,7 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
     }
 
     /// <summary>
-    /// A closed slab blocks light through its doorway; an open one swings out of the way.
+    /// A closed slab blocks light through its doorway; an open one clears the opening.
     /// </summary>
     public void DrawDepth(GameWorld world, ShadowPass pass)
     {
@@ -237,6 +306,12 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
                 continue;
             }
 
+            if (door.IsSlidingDouble)
+            {
+                DrawSlidingDepth(door, pass);
+                continue;
+            }
+
             var yawDegrees = MathUtil.RadToDeg(door.CurrentYaw);
             if (TryGetModel(door, out var handle))
             {
@@ -244,8 +319,6 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
                 continue;
             }
 
-            // Placeholder slab: same hinge offset as DrawDoor, but as a mesh so the depth
-            // shader receives a model matrix.
             var localCenter = Vector3.Transform(
                 new Vector3(door.Width * 0.5f, door.Height * 0.5f, 0f),
                 Matrix4x4.CreateRotationY(door.CurrentYaw));
@@ -345,6 +418,12 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
 
     private void DrawDoor(DoorState door, bool focused)
     {
+        if (door.IsSlidingDouble)
+        {
+            DrawSlidingDoor(door, focused);
+            return;
+        }
+
         if (TryGetModel(door, out var handle))
         {
             Raylib.DrawModelEx(
@@ -368,6 +447,54 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
             fill);
     }
 
+    private void DrawSlidingDoor(DoorState door, bool focused)
+    {
+        var yawDegrees = MathUtil.RadToDeg(door.ClosedYaw);
+        GetSlidingLeafCenters(door, out var leftCenter, out var rightCenter);
+        var leafSize = new Vector3(door.LeafWidth, door.Height, door.Thickness);
+
+        if (TryGetModel(door, out var handle))
+        {
+            Raylib.DrawModelEx(handle.Model, leftCenter, Vector3.UnitY, yawDegrees, Vector3.One, Color.White);
+            Raylib.DrawModelEx(handle.Model, rightCenter, Vector3.UnitY, yawDegrees, Vector3.One, Color.White);
+            return;
+        }
+
+        var fill = focused ? Lighten(ResolveFill(door)) : ResolveFill(door);
+        _placeholder.Draw(leftCenter, leafSize, yawDegrees, fill);
+        _placeholder.Draw(rightCenter, leafSize, yawDegrees, fill);
+    }
+
+    private void DrawSlidingDepth(DoorState door, ShadowPass pass)
+    {
+        var yawDegrees = MathUtil.RadToDeg(door.ClosedYaw);
+        GetSlidingLeafCenters(door, out var leftCenter, out var rightCenter);
+        var leafSize = new Vector3(door.LeafWidth, door.Height, door.Thickness);
+
+        if (TryGetModel(door, out var handle))
+        {
+            pass.DrawModel(handle.Model, leftCenter, yawDegrees, 1f);
+            pass.DrawModel(handle.Model, rightCenter, yawDegrees, 1f);
+            return;
+        }
+
+        pass.DrawBox(leftCenter, leafSize, yawDegrees);
+        pass.DrawBox(rightCenter, leafSize, yawDegrees);
+    }
+
+    private static void GetSlidingLeafCenters(
+        DoorState door,
+        out Vector3 leftCenter,
+        out Vector3 rightCenter)
+    {
+        var rot = Matrix4x4.CreateRotationY(door.ClosedYaw);
+        var slide = door.OpenAmount * door.SlideTravel;
+        var leftLocal = new Vector3(-door.LeafWidth * 0.5f - slide, door.Height * 0.5f, 0f);
+        var rightLocal = new Vector3(door.LeafWidth * 0.5f + slide, door.Height * 0.5f, 0f);
+        leftCenter = door.HingePosition + Vector3.Transform(leftLocal, rot);
+        rightCenter = door.HingePosition + Vector3.Transform(rightLocal, rot);
+    }
+
     private static Color ResolveFill(DoorState door) =>
         door.Color.A == 0 ? DoorFill : door.Color;
 
@@ -380,9 +507,14 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
 
     private bool TryRaycast(DoorState door, Vector3 origin, Vector3 direction, out float distance)
     {
+        if (door.IsSlidingDouble)
+        {
+            return TryRaycastSliding(door, origin, direction, out distance);
+        }
+
         if (TryGetModel(door, out var handle))
         {
-            return TryRaycastModel(handle, door, origin, direction, out distance);
+            return TryRaycastSwingModel(handle, door, origin, direction, out distance);
         }
 
         var invYaw = Matrix4x4.CreateRotationY(-door.CurrentYaw);
@@ -401,7 +533,63 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
         return localBox.TryIntersectRay(localOrigin, localDir, out distance);
     }
 
-    private static bool TryRaycastModel(
+    private bool TryRaycastSliding(DoorState door, Vector3 origin, Vector3 direction, out float distance)
+    {
+        distance = float.MaxValue;
+        var hit = false;
+
+        if (TryGetModel(door, out var handle))
+        {
+            GetSlidingLeafCenters(door, out var leftCenter, out var rightCenter);
+            if (TryRaycastModelAt(handle, leftCenter, door.ClosedYaw, origin, direction, ref distance))
+            {
+                hit = true;
+            }
+
+            if (TryRaycastModelAt(handle, rightCenter, door.ClosedYaw, origin, direction, ref distance))
+            {
+                hit = true;
+            }
+
+            return hit;
+        }
+
+        var invYaw = Matrix4x4.CreateRotationY(-door.ClosedYaw);
+        var localOrigin = Vector3.Transform(origin - door.HingePosition, invYaw);
+        var localDir = Vector3.TransformNormal(direction, invYaw);
+        if (localDir.LengthSquared() < 1e-8f)
+        {
+            distance = 0f;
+            return false;
+        }
+
+        localDir = Vector3.Normalize(localDir);
+        var slide = door.OpenAmount * door.SlideTravel;
+        var halfT = door.Thickness * 0.5f;
+
+        var leftBox = new Aabb(
+            new Vector3(-door.LeafWidth - slide, 0f, -halfT),
+            new Vector3(-slide, door.Height, halfT));
+        var rightBox = new Aabb(
+            new Vector3(slide, 0f, -halfT),
+            new Vector3(door.LeafWidth + slide, door.Height, halfT));
+
+        if (leftBox.TryIntersectRay(localOrigin, localDir, out var leftHit) && leftHit < distance)
+        {
+            distance = leftHit;
+            hit = true;
+        }
+
+        if (rightBox.TryIntersectRay(localOrigin, localDir, out var rightHit) && rightHit < distance)
+        {
+            distance = rightHit;
+            hit = true;
+        }
+
+        return hit;
+    }
+
+    private static bool TryRaycastSwingModel(
         ModelHandle handle,
         DoorState door,
         Vector3 origin,
@@ -409,23 +597,34 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
         out float distance)
     {
         distance = float.MaxValue;
+        return TryRaycastModelAt(handle, door.HingePosition, door.CurrentYaw, origin, direction, ref distance);
+    }
+
+    private static bool TryRaycastModelAt(
+        ModelHandle handle,
+        Vector3 position,
+        float yaw,
+        Vector3 origin,
+        Vector3 direction,
+        ref float bestDistance)
+    {
         var ray = new Ray(origin, direction);
         var transform =
-            Matrix4x4.CreateRotationY(door.CurrentYaw) *
-            Matrix4x4.CreateTranslation(door.HingePosition);
+            Matrix4x4.CreateRotationY(yaw) *
+            Matrix4x4.CreateTranslation(position);
 
         var hit = false;
         var meshes = handle.Model.MeshesAsSpan();
         for (var i = 0; i < meshes.Length; i++)
         {
             var collision = Raylib.GetRayCollisionMesh(ray, meshes[i], transform);
-            if (!collision.Hit || collision.Distance >= distance)
+            if (!collision.Hit || collision.Distance >= bestDistance)
             {
                 continue;
             }
 
             hit = true;
-            distance = collision.Distance;
+            bestDistance = collision.Distance;
         }
 
         return hit;
@@ -446,10 +645,19 @@ public sealed class DoorsAccessFeature : FeatureBase, IShadowCaster, IInteractab
 
     private static bool IsPlayerInRadius(Vector3 playerPosition, DoorState door)
     {
-        var hingeToCenter = Vector3.Transform(
-            new Vector3(door.Width * 0.5f, 0f, 0f),
-            Matrix4x4.CreateRotationY(door.ClosedYaw));
-        var center = door.HingePosition + hingeToCenter;
+        Vector3 center;
+        if (door.IsSlidingDouble)
+        {
+            center = door.HingePosition + new Vector3(0f, door.Height * 0.5f, 0f);
+        }
+        else
+        {
+            var hingeToCenter = Vector3.Transform(
+                new Vector3(door.Width * 0.5f, 0f, 0f),
+                Matrix4x4.CreateRotationY(door.ClosedYaw));
+            center = door.HingePosition + hingeToCenter;
+        }
+
         var dx = playerPosition.X - center.X;
         var dz = playerPosition.Z - center.Z;
         var radius = door.InteractRadius;
