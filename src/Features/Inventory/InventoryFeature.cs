@@ -11,6 +11,8 @@ public static class ItemId
     public const string KeycardBlue = "keycard_blue";
     public const string KeycardOrange = "keycard_orange";
     public const string KeycardGreen = "keycard_green";
+    public const string KeycardPurple = "keycard_purple";
+    public const string KeycardRed = "keycard_red";
 }
 
 public sealed class InventoryFeature : FeatureBase

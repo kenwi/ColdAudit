@@ -180,7 +180,20 @@ public enum DoorMotion
     Swing = 0,
 
     /// <summary>Two leaves meet at the center and slide apart like elevator doors.</summary>
-    SlidingDouble = 1
+    SlidingDouble = 1,
+
+    /// <summary>Two hinged leaves at the jambs; each opens independently.</summary>
+    SwingDouble = 2,
+
+    /// <summary>One panel slides along the doorway on a chosen side.</summary>
+    SlidingSingle = 3
+}
+
+/// <summary>Which way a single sliding panel moves when opening.</summary>
+public enum SlideDirection
+{
+    Left = -1,
+    Right = 1
 }
 
 public sealed class DoorDef
@@ -190,7 +203,7 @@ public sealed class DoorDef
     public DoorMotion Motion { get; init; } = DoorMotion.Swing;
 
     /// <summary>
-    /// Swing: hinge floor pivot. Sliding double: center of the closed doorway on the floor.
+    /// Swing: hinge floor pivot. Multi-leaf / sliding: center of the closed doorway on the floor.
     /// </summary>
     public Vector3 HingePosition { get; init; }
 
@@ -201,10 +214,13 @@ public sealed class DoorDef
     public float OpenAngleDegrees { get; init; } = 90f;
 
     /// <summary>
-    /// How far each sliding leaf travels along local +X/-X. Zero defaults to half
-    /// <see cref="Width"/> (fully clears the opening).
+    /// Sliding: travel distance along local X. Zero defaults to <see cref="Width"/> for a single
+    /// panel, or half <see cref="Width"/> per leaf on <see cref="DoorMotion.SlidingDouble"/>.
     /// </summary>
     public float SlideDistance { get; init; }
+
+    /// <summary>Used by <see cref="DoorMotion.SlidingSingle"/> only.</summary>
+    public SlideDirection SlideDirection { get; init; } = SlideDirection.Right;
 
     public float InteractRadius { get; init; } = 2.5f;
     public bool Locked { get; init; }

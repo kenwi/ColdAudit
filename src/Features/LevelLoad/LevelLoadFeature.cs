@@ -119,6 +119,8 @@ public sealed class LevelLoadFeature : FeatureBase
         var accessBlue = new Raylib_cs.Color(36, 92, 188, 255);
         var accessOrange = new Raylib_cs.Color(212, 96, 28, 255);
         var accessGreen = new Raylib_cs.Color(42, 148, 78, 255);
+        var accessPurple = new Raylib_cs.Color(128, 58, 188, 255);
+        var accessRed = new Raylib_cs.Color(196, 48, 58, 255);
 
         // Placeholder box doors. Hinge is the pivot; swap in ModelPath later (origin at hinge).
         level.Doors.Add(new DoorDef
@@ -149,6 +151,37 @@ public sealed class LevelLoadFeature : FeatureBase
             Color = accessGreen
         });
 
+        // French-style double swing: each leaf opens independently from the jambs.
+        level.Doors.Add(new DoorDef
+        {
+            Id = "door_swing_double_a",
+            SectorId = "room_a",
+            Motion = DoorMotion.SwingDouble,
+            HingePosition = new System.Numerics.Vector3(-1.8f, 0f, -5.8f),
+            ClosedYawDegrees = 0f,
+            Width = 1.6f,
+            Height = 2.5f,
+            Locked = true,
+            RequiredItemId = ItemId.KeycardPurple,
+            Color = accessPurple
+        });
+
+        // Single panel slides to the right to clear the opening.
+        level.Doors.Add(new DoorDef
+        {
+            Id = "door_slide_single_a",
+            SectorId = "room_a",
+            Motion = DoorMotion.SlidingSingle,
+            HingePosition = new System.Numerics.Vector3(1.0f, 0f, -6.4f),
+            ClosedYawDegrees = 0f,
+            Width = 1.4f,
+            Height = 2.5f,
+            SlideDirection = SlideDirection.Right,
+            Locked = true,
+            RequiredItemId = ItemId.KeycardRed,
+            Color = accessRed
+        });
+
         // Generated placeholder cards on the floor in front of spawn (looking -Z). Swap ModelPath later.
         level.Keycards.Add(new KeycardDef
         {
@@ -176,6 +209,24 @@ public sealed class LevelLoadFeature : FeatureBase
             Position = new System.Numerics.Vector3(0.05f, 0.012f, -1.55f),
             YawDegrees = 10f,
             Color = accessGreen
+        });
+        level.Keycards.Add(new KeycardDef
+        {
+            Id = "pickup_keycard_purple",
+            ItemId = ItemId.KeycardPurple,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(-0.35f, 0.012f, -1.85f),
+            YawDegrees = -15f,
+            Color = accessPurple
+        });
+        level.Keycards.Add(new KeycardDef
+        {
+            Id = "pickup_keycard_red",
+            ItemId = ItemId.KeycardRed,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(0.45f, 0.012f, -1.85f),
+            YawDegrees = 20f,
+            Color = accessRed
         });
         // Raylib basic PBR example car, in front of spawn (looking -Z).
         var carPath = ModelCatalog.OldCarGlbPath;
