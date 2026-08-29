@@ -156,6 +156,8 @@ public sealed class GameApp
         _features.Add(new PhysicsDebugDrawFeature(physics));
         _features.Add(levelProps);
         _features.Add(new HudFeature());
+        // After HudFeature: draws into the UI framebuffer that Hud already began.
+        _features.Add(new InventoryHudFeature());
         _features.Add(new DebugOverlayFeature(physics, shadows));
         _features.Add(new UiPresentFeature());
     }
