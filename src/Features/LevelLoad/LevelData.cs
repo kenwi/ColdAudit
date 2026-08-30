@@ -14,7 +14,6 @@ public sealed class LevelData
     public List<InteractableDef> Interactables { get; } = [];
     public List<ModelPlacementDef> ModelPlacements { get; } = [];
     public List<DoorDef> Doors { get; } = [];
-    public List<KeycardDef> Keycards { get; } = [];
     public List<PickupDef> Pickups { get; } = [];
     public List<CameraDef> Cameras { get; } = [];
     public List<LightDef> Lights { get; } = [];
@@ -308,37 +307,9 @@ public sealed class CameraDef
 }
 
 /// <summary>
-/// Floor keycard pickup. <see cref="Position"/> is the floor contact. Swap in <see cref="ModelPath"/>
-/// later; placeholder is a generated card slab until then.
-/// </summary>
-public sealed class KeycardDef
-{
-    public string Id { get; init; } = string.Empty;
-    public string ItemId { get; init; } = string.Empty;
-    public string SectorId { get; init; } = string.Empty;
-    public Vector3 Position { get; init; }
-    public float YawDegrees { get; init; }
-    public float Width { get; init; } = 0.18f;
-    public float Height { get; init; } = 0.012f;
-    public float Depth { get; init; } = 0.115f;
-    public float InteractRadius { get; init; } = 2f;
-
-    /// <summary>
-    /// Placeholder tint. Match the door this card unlocks. Alpha 0 uses the default blue.
-    /// </summary>
-    public Color Color { get; init; }
-
-    /// <summary>
-    /// Optional GLB. Null/empty draws the generated placeholder card.
-    /// </summary>
-    public string? ModelPath { get; init; }
-
-    public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
-}
-
-/// <summary>
-/// Generic floor pickup (USB sticks, badges, etc.). <see cref="Position"/> is the floor contact.
+/// Floor pickup (keycards, USB sticks, badges, etc.). <see cref="Position"/> is the floor contact.
 /// Placeholder is a lit box sized by Width/Height/Depth until <see cref="ModelPath"/> is set.
+/// Keycard item ids get a gold chip drawn by PickupsFeature / InventoryHudFeature.
 /// </summary>
 public sealed class PickupDef
 {
@@ -352,7 +323,10 @@ public sealed class PickupDef
     public float Depth { get; init; } = 0.08f;
     public float InteractRadius { get; init; } = 2f;
 
-    /// <summary>Placeholder tint. Alpha 0 uses the inventory catalog color.</summary>
+    /// <summary>
+    /// Placeholder tint. Alpha 0 uses the inventory catalog color.
+    /// For keycards, match the door this card unlocks.
+    /// </summary>
     public Color Color { get; init; }
 
     /// <summary>Optional GLB. Null/empty draws the lit-box placeholder.</summary>

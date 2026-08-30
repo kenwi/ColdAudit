@@ -26,19 +26,6 @@ public static class ItemVisualCatalog
             return visual;
         }
 
-        foreach (var card in level.Keycards)
-        {
-            if (!string.Equals(card.ItemId, itemId, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var color = card.Color.A == 0 ? visual.Color : card.Color;
-            var size = new Vector3(card.Width, card.Height, card.Depth);
-            var path = card.HasModel ? card.ModelPath : visual.ModelPath;
-            return visual with { Color = color, BoxSize = size, ModelPath = path };
-        }
-
         foreach (var pickup in level.Pickups)
         {
             if (!string.Equals(pickup.ItemId, itemId, StringComparison.Ordinal))

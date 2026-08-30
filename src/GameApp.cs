@@ -6,7 +6,6 @@ using ColdAudit.Features.Fullscreen;
 using ColdAudit.Features.Hud;
 using ColdAudit.Features.Interaction;
 using ColdAudit.Features.Inventory;
-using ColdAudit.Features.Keycards;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.LevelProps;
@@ -129,7 +128,6 @@ public sealed class GameApp
         var levelModels = new LevelModelsFeature();
         var levelProps = new LevelPropsFeature();
         var doors = new DoorsAccessFeature();
-        var keycards = new KeycardsFeature();
         var pickups = new PickupsFeature();
         var cameras = new CamerasFeature(physics, doors);
         // Shadow casters are drawn once per cubemap face, before the main pass.
@@ -139,8 +137,7 @@ public sealed class GameApp
         _features.Add(physics);
         _features.Add(new FullscreenFeature());
         _features.Add(new PlayerControllerFeature(physics));
-        _features.Add(new InteractionFeature(doors, keycards, pickups, cameras));
-        _features.Add(keycards);
+        _features.Add(new InteractionFeature(doors, pickups, cameras));
         // Before InventoryFeature so UseRequested → ItemAcquired lands same frame.
         _features.Add(pickups);
         _features.Add(new InventoryFeature());

@@ -182,50 +182,68 @@ public sealed class LevelLoadFeature : FeatureBase
             Color = accessRed
         });
 
-        // Generated placeholder cards on the floor in front of spawn (looking -Z). Swap ModelPath later.
-        level.Keycards.Add(new KeycardDef
+        // Floor pickups in front of spawn (looking -Z). Keycard sizes match ItemVisualCatalog.
+        const float cardW = 0.18f;
+        const float cardH = 0.012f;
+        const float cardD = 0.115f;
+        level.Pickups.Add(new PickupDef
         {
             Id = "pickup_keycard_blue",
             ItemId = ItemId.KeycardBlue,
             SectorId = "room_a",
             Position = new System.Numerics.Vector3(-0.55f, 0.012f, -1.15f),
             YawDegrees = -25f,
+            Width = cardW,
+            Height = cardH,
+            Depth = cardD,
             Color = accessBlue
         });
-        level.Keycards.Add(new KeycardDef
+        level.Pickups.Add(new PickupDef
         {
             Id = "pickup_keycard_orange",
             ItemId = ItemId.KeycardOrange,
             SectorId = "room_a",
             Position = new System.Numerics.Vector3(0.65f, 0.012f, -1.25f),
             YawDegrees = 35f,
+            Width = cardW,
+            Height = cardH,
+            Depth = cardD,
             Color = accessOrange
         });
-        level.Keycards.Add(new KeycardDef
+        level.Pickups.Add(new PickupDef
         {
             Id = "pickup_keycard_green",
             ItemId = ItemId.KeycardGreen,
             SectorId = "room_a",
             Position = new System.Numerics.Vector3(0.05f, 0.012f, -1.55f),
             YawDegrees = 10f,
+            Width = cardW,
+            Height = cardH,
+            Depth = cardD,
             Color = accessGreen
         });
-        level.Keycards.Add(new KeycardDef
+        level.Pickups.Add(new PickupDef
         {
             Id = "pickup_keycard_purple",
             ItemId = ItemId.KeycardPurple,
             SectorId = "room_a",
             Position = new System.Numerics.Vector3(-0.35f, 0.012f, -1.85f),
             YawDegrees = -15f,
+            Width = cardW,
+            Height = cardH,
+            Depth = cardD,
             Color = accessPurple
         });
-        level.Keycards.Add(new KeycardDef
+        level.Pickups.Add(new PickupDef
         {
             Id = "pickup_keycard_red",
             ItemId = ItemId.KeycardRed,
             SectorId = "room_a",
             Position = new System.Numerics.Vector3(0.45f, 0.012f, -1.85f),
             YawDegrees = 20f,
+            Width = cardW,
+            Height = cardH,
+            Depth = cardD,
             Color = accessRed
         });
         // Finance DR USB stick - objective item, near the keycard cluster.

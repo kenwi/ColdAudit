@@ -183,7 +183,7 @@ public sealed class InventoryHudFeature : FeatureBase
             return;
         }
 
-        // Same local layout as KeycardsFeature: body at origin, gold chip on the top face.
+        // Same local layout as PickupsFeature: body at origin, gold chip on the top face.
         _placeholder.Draw(Vector3.Zero, visual.BoxSize, _spinYawDegrees, visual.Color);
 
         if (!ItemVisualCatalog.IsKeycard(itemId))

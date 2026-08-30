@@ -26,14 +26,10 @@ public sealed class PickupState
 
     public bool HasModel => !string.IsNullOrWhiteSpace(ModelPath);
 
-    public string Prompt
-    {
-        get
-        {
-            var label = ItemVisualCatalog.Resolve(ItemId, null).Label;
-            return $"{label}  [E] Pick up";
-        }
-    }
+    public string Prompt =>
+        ItemVisualCatalog.IsKeycard(ItemId)
+            ? "Keycard  [E] Pick up"
+            : $"{ItemVisualCatalog.Resolve(ItemId, null).Label}  [E] Pick up";
 }
 
 public sealed class PickupsFeature : FeatureBase, IInteractableSource
@@ -222,6 +218,20 @@ public sealed class PickupsFeature : FeatureBase, IInteractableSource
             new Vector3(pickup.Width, pickup.Height, pickup.Depth),
             yaw,
             fill);
+
+        if (!ItemVisualCatalog.IsKeycard(pickup.ItemId))
+        {
+            return;
+        }
+
+        var chipOffset = Vector3.Transform(
+            new Vector3(-pickup.Width * 0.28f, pickup.Height * 0.5f + 0.0015f, pickup.Depth * 0.12f),
+            Matrix4x4.CreateRotationY(pickup.Yaw));
+        _placeholder.Draw(
+            bodyCenter + chipOffset,
+            new Vector3(0.028f, 0.003f, 0.022f),
+            yaw,
+            ItemVisualCatalog.KeycardChipColor);
     }
 
     private static Color ResolveFill(PickupState pickup)
