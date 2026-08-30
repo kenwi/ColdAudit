@@ -228,6 +228,19 @@ public sealed class LevelLoadFeature : FeatureBase
             YawDegrees = 20f,
             Color = accessRed
         });
+        // Finance DR USB stick - objective item, near the keycard cluster.
+        level.Pickups.Add(new PickupDef
+        {
+            Id = "pickup_usb_stick",
+            ItemId = ItemId.DriveFinanceDr,
+            SectorId = "room_a",
+            Position = new System.Numerics.Vector3(-0.9f, 0.02f, -1.4f),
+            YawDegrees = 40f,
+            Width = 0.06f,
+            Height = 0.02f,
+            Depth = 0.10f,
+            Color = new Raylib_cs.Color(48, 48, 52, 255)
+        });
         // Raylib basic PBR example car, in front of spawn (looking -Z).
         var carPath = ModelCatalog.OldCarGlbPath;
         level.ModelPlacements.Add(new ModelPlacementDef

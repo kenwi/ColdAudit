@@ -39,6 +39,19 @@ public static class ItemVisualCatalog
             return visual with { Color = color, BoxSize = size, ModelPath = path };
         }
 
+        foreach (var pickup in level.Pickups)
+        {
+            if (!string.Equals(pickup.ItemId, itemId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var color = pickup.Color.A == 0 ? visual.Color : pickup.Color;
+            var size = new Vector3(pickup.Width, pickup.Height, pickup.Depth);
+            var path = pickup.HasModel ? pickup.ModelPath : visual.ModelPath;
+            return visual with { Color = color, BoxSize = size, ModelPath = path };
+        }
+
         return visual;
     }
 
@@ -54,7 +67,7 @@ public static class ItemVisualCatalog
         ItemId.KeycardPurple => new("Purple", new(128, 58, 188, 255), KeycardSize, null),
         ItemId.KeycardRed => new("Red", new(196, 48, 58, 255), KeycardSize, null),
         ItemId.BadgeSpare => new("Badge", new(200, 180, 60, 255), new(0.12f, 0.01f, 0.08f), null),
-        ItemId.DriveFinanceDr => new("Drive", new(48, 48, 52, 255), new(0.06f, 0.02f, 0.1f), null),
+        ItemId.DriveFinanceDr => new("USB", new(48, 48, 52, 255), new(0.06f, 0.02f, 0.1f), null),
         _ => new(itemId, new(140, 140, 140, 255), new(0.08f, 0.08f, 0.08f), null)
     };
 }
