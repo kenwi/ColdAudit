@@ -18,6 +18,44 @@ inside a window or doorway.
 import bpy, bmesh, math, os
 from mathutils import Vector
 
+
+def repo_root():
+    """Repo root, whether this runs from tools/ or from an interactive session."""
+    try:
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    except NameError:
+        return os.getcwd()
+
+
+# Poly Haven CC0 textures, keyed by material name. Each entry is the diffuse PNG plus
+# the real-world span one repeat of it covers, as published by Poly Haven, so the UV
+# pass at the end of the build can keep every surface life-sized.
+#
+# Stored as PNG, not the JPEG Poly Haven ships: the raylib build this project links
+# has no JPEG decoder (LoadImage on a .jpg returns a 0x0 image), and a GLB embeds the
+# image verbatim, so a JPEG would arrive in the engine untextured.
+def _tex(asset):
+    return os.path.join(repo_root(), "content", "textures", asset,
+                        asset + "_diffuse.png")
+
+TEXTURES = {
+    "Floor_Laminate": (_tex("laminate_floor_02"),     1.70),
+    "Wall_Interior":  (_tex("white_stucco"),          2.00),
+    # Cast concrete, smooth: the slabs and stairs keep the marks of the boards they
+    # were formed against, while outside and on the plaza the finish is poured flat. A
+    # grooved panel texture was tried on the facade and read as timber at 4 m a repeat.
+    "Slab_Concrete":  (_tex("concrete_slab_wall_02"), 2.10),
+    "Site_Concrete":  (_tex("concrete_wall_009"),     1.80),
+    "Wall_Exterior":  (_tex("concrete_wall_009"),     1.80),
+    "Desk_Wood":      (_tex("oak_wood_planks"),       1.20),
+    "Table_Dark":     (_tex("stair_planks"),          1.20),
+    "Dark_Leather":   (_tex("leather_red_02"),        0.60),
+    "Accent_Blue":    (_tex("blue_metal_plate"),      2.50),
+    # Leaves are a good deal smaller than a planter, so this one is tiled below its
+    # real 2.3 m to keep the foliage in scale with the 0.7 m box it wraps.
+    "Plant":          (_tex("forest_leaves_03"),      1.20),
+}
+
 # ============================================================== cleanup
 for ob in list(bpy.data.objects):
     bpy.data.objects.remove(ob, do_unlink=True)
@@ -68,26 +106,71 @@ def make_mat(name, color, rough=0.85, metal=0.0, emis=None, emis_strength=1.5):
     m.diffuse_color = (color[0], color[1], color[2], 1.0)
     return m
 
+def make_tex_mat(name, rough=0.75, metal=0.0, fallback=(0.62, 0.52, 0.42)):
+    """Principled material whose Base Color is the texture TEXTURES[name] names.
+
+    Only albedo is wired: the exporter packs glTF metallicRoughness as G=rough,
+    B=metal, while the engine's shader reads its mraMap as r=metal, g=rough,
+    b=ao, so a roughness map here would show up as full metalness. Add one only
+    alongside a matching repack in pbr.fs / BasicLighting.
+    """
+    image_path = TEXTURES[name][0]
+    if not os.path.isfile(image_path):
+        print("WARN: texture missing, flat colour instead:", image_path)
+        return make_mat(name, fallback, rough, metal)
+
+    img = bpy.data.images.load(image_path, check_existing=True)
+    img.colorspace_settings.name = 'sRGB'
+
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    tree = m.node_tree
+    bsdf = next(n for n in tree.nodes if n.type == 'BSDF_PRINCIPLED')
+
+    tex = tree.nodes.new('ShaderNodeTexImage')
+    tex.label = tex.name = "BaseColor"
+    tex.image = img
+    tex.location = (-460, 240)
+    tex.interpolation = 'Linear'
+    # No Mapping node: UVs already carry the tiling, so the glTF stays transform-free.
+    tree.links.new(tex.outputs['Color'], _sock(bsdf, 'Base Color'))
+
+    s = _sock(bsdf, 'Roughness')
+    if s: s.default_value = rough
+    s = _sock(bsdf, 'Metallic')
+    if s: s.default_value = metal
+
+    m.diffuse_color = (fallback[0], fallback[1], fallback[2], 1.0)
+    return m
+
 M = {}
-M['slab']    = make_mat("Slab_Concrete",     (0.55, 0.55, 0.54), 0.95)
-M['floor_gf']= make_mat("Floor_Concrete",    (0.60, 0.61, 0.60), 0.92)
-M['floor_uf']= make_mat("Floor_Carpet",      (0.30, 0.34, 0.42), 0.97)
-M['wall']    = make_mat("Wall_Interior",     (0.87, 0.87, 0.85), 0.9)
-M['ext']     = make_mat("Wall_Exterior",     (0.28, 0.30, 0.34), 0.8)
+# Textured: everything a player reads as a material. What stays flat is deliberate -
+# glass, screens, LEDs and the light panels are transparent or emissive, and the metal
+# is flat because Poly Haven's whole metal library is weathered or rusty, which would
+# make clean office steelwork look corroded.
+M['slab']    = make_tex_mat("Slab_Concrete",  rough=0.90, fallback=(0.55, 0.55, 0.54))
+# One material for both storeys. The ceilings are the undersides of the slab and roof
+# boxes, so a floor finish can never bleed onto a ceiling.
+M['floor']   = make_tex_mat("Floor_Laminate", rough=0.55)
+M['wall']    = make_tex_mat("Wall_Interior",  rough=0.90, fallback=(0.87, 0.87, 0.85))
+M['ext']     = make_tex_mat("Wall_Exterior",  rough=0.85, fallback=(0.72, 0.71, 0.68))
 M['glass']   = make_mat("Glass",             (0.62, 0.76, 0.86), 0.12)
-M['wood']    = make_mat("Desk_Wood",         (0.44, 0.29, 0.16), 0.6)
-M['wood2']   = make_mat("Table_Dark",        (0.26, 0.17, 0.10), 0.6)
+M['wood']    = make_tex_mat("Desk_Wood",      rough=0.60, fallback=(0.44, 0.29, 0.16))
+M['wood2']   = make_tex_mat("Table_Dark",     rough=0.60, fallback=(0.26, 0.17, 0.10))
 M['metal']   = make_mat("Metal",             (0.56, 0.57, 0.59), 0.35, 0.9)
 M['dark']    = make_mat("Furniture_Dark",    (0.10, 0.11, 0.13), 0.5, 0.5)
+# Upholstery only: monitor stands, the security console and the planters keep the matte
+# dark plastic above, which leather would be wrong on.
+M['leather'] = make_tex_mat("Dark_Leather",   rough=0.45, fallback=(0.30, 0.14, 0.11))
 M['screen']  = make_mat("Screen",            (0.04, 0.12, 0.20), 0.3, 0.0, (0.15, 0.55, 0.9), 3.0)
 M['server']  = make_mat("Server_Rack",       (0.06, 0.07, 0.09), 0.5, 0.7)
 M['led']     = make_mat("LED_Green",         (0.10, 0.80, 0.20), 0.4, 0.0, (0.20, 1.0, 0.30), 6.0)
 M['rail']    = make_mat("Railing",           (0.24, 0.25, 0.27), 0.4, 0.8)
-M['stairs']  = make_mat("Stairs",            (0.45, 0.45, 0.46), 0.85)
-M['accent']  = make_mat("Accent_Blue",       (0.08, 0.32, 0.62), 0.6)
-M['plant']   = make_mat("Plant",             (0.14, 0.42, 0.17), 0.9)
+M['stairs']  = M['slab']     # cast in the same concrete as the slabs
+M['accent']  = make_tex_mat("Accent_Blue",    rough=0.55, fallback=(0.08, 0.32, 0.62))
+M['plant']   = make_tex_mat("Plant",          rough=0.85, fallback=(0.14, 0.42, 0.17))
 M['ground']  = make_mat("Ground",            (0.20, 0.24, 0.19), 1.0)
-M['site']    = make_mat("Site_Plinth",       (0.32, 0.33, 0.32), 0.95)
+M['site']    = make_tex_mat("Site_Concrete",  rough=0.90, fallback=(0.62, 0.62, 0.60))
 M['panel']   = make_mat("Ceiling_Light",     (0.95, 0.95, 0.92), 0.5, 0.0, (1.0, 0.97, 0.92), 4.0)
 
 # ============================================================== geometry helpers
@@ -99,9 +182,45 @@ def _finalize(ob):
     ob.rotation_euler = (0.0, 0.0, 0.0)
     ob.scale = (1.0, 1.0, 1.0)
 
+def _uv_box(ob, tile):
+    """Overwrite UVs with a world-space box projection: each face is projected onto the
+    plane it faces, so a textured surface stays life-sized however the object is placed
+    or rotated.
+
+    Per face rather than per object, so floors, walls and ceilings tile continuously -
+    including a wall and the slab above it, which meet at right angles.
+
+    Call after _finalize, which bakes scale and rotation into the mesh and leaves only
+    the object's location between mesh coordinates and world space.
+    """
+    me = ob.data
+    uvl = me.uv_layers[0] if me.uv_layers else me.uv_layers.new(name="UVMap")
+    ox, oy, oz = ob.location
+    for poly in me.polygons:
+        n = poly.normal
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            w = (ox + co.x, oy + co.y, oz + co.z)
+            u, v = ((w[1], w[2]) if ax == 0 else
+                    (w[0], w[2]) if ax == 1 else (w[0], w[1]))
+            uvl.data[li].uv = (u / tile, v / tile)
+
+def texture_uvs():
+    """Project real-world UVs onto every object whose material has a texture.
+
+    Runs once at the end of the build, when all rotation and scale is baked out.
+    """
+    for ob in bpy.data.objects:
+        if ob.type != 'MESH' or not ob.data.materials:
+            continue
+        mat = ob.data.materials[0]
+        if mat is not None and mat.name in TEXTURES:
+            _uv_box(ob, TEXTURES[mat.name][1])
+
 def box(name, center, size, mat, coll):
     me = bpy.data.meshes.new(name)
-    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0); bm.to_mesh(me); bm.free()
+    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0, calc_uvs=True); bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new(name, me)
     ob.scale = (size[0], size[1], size[2])
     ob.location = center
@@ -189,7 +308,7 @@ PIER = 0.325
 box("Ground", (0, 0, -0.32), (90, 70, 0.04), M['ground'], C_STRUCT)
 box("Site_Plinth", (0, 0, -0.27), (50, 36, 0.30), M['site'], C_STRUCT)
 box("Slab_GroundFloor", (0, 0, GF0 - ST / 2), (2 * W2, 2 * D2, ST), M['slab'], C_STRUCT)
-box("FloorFinish_Ground", (0, 0, GF0 + 0.01), (2 * W2 - 0.5, 2 * D2 - 0.5, 0.02), M['floor_gf'], C_STRUCT)
+box("FloorFinish_Ground", (0, 0, GF0 + 0.01), (2 * W2 - 0.5, 2 * D2 - 0.5, 0.02), M['floor'], C_STRUCT)
 
 # second-floor slab, minus the stair opening
 z2 = (MF0 + MF1) / 2.0
@@ -197,8 +316,8 @@ box("Slab_Level2_A", (-3.4, 0, z2), (23.2, 20, ST), M['slab'], C_STRUCT)
 box("Slab_Level2_B", (14.3, 0, z2), (1.4, 20, ST), M['slab'], C_STRUCT)
 box("Slab_Level2_C", (10.9, -3.6, z2), (5.4, 12.8, ST), M['slab'], C_STRUCT)
 box("Slab_Level2_D", (10.9, 8.1, z2), (5.4, 3.8, ST), M['slab'], C_STRUCT)
-box("FloorFinish_Upper_A", (-3.5, 0, MF1 + 0.01), (23.0, 19.5, 0.02), M['floor_uf'], C_STRUCT)
-box("FloorFinish_Upper_B", (14.3, 0, MF1 + 0.01), (1.3, 19.5, 0.02), M['floor_uf'], C_STRUCT)
+box("FloorFinish_Upper_A", (-3.5, 0, MF1 + 0.01), (23.0, 19.5, 0.02), M['floor'], C_STRUCT)
+box("FloorFinish_Upper_B", (14.3, 0, MF1 + 0.01), (1.3, 19.5, 0.02), M['floor'], C_STRUCT)
 
 # ============================================================== exterior walls
 # Opening layout is pinned to the interior walls: each opening stops PIER short of the
@@ -272,7 +391,9 @@ wall("UF_Glass_E", (13, -10), (13, -3.5), UF0, UF1, 0.08, M['glass'], C_WALLS)
 wall("UF_Glass_N", (5, -3.5), (13, -3.5), UF0, UF1, 0.08, M['glass'], C_WALLS)
 
 # ============================================================== roof
-box("Roof_Slab", (0, 0, RF0 + ST / 2), (2 * W2, 2 * D2, ST), M['ext'], C_ROOF)
+# The roof deck is also the upper floor's ceiling, so it is concrete like the other
+# slabs - not the facade material, which would paint the ceiling with the exterior.
+box("Roof_Slab", (0, 0, RF0 + ST / 2), (2 * W2, 2 * D2, ST), M['slab'], C_ROOF)
 box("Roof_Parapet", (0, 0, RF1 + 0.25), (2 * W2 + 0.3, 2 * D2 + 0.3, 0.5), M['ext'], C_ROOF)
 
 # ============================================================== stairs
@@ -298,8 +419,8 @@ def desk(name, cx, cy, w=1.6, d=0.8, mat=None, z0=0.0):
             (0.05, 0.05, 0.72), M['metal'], C_FURN)
 
 def chair(name, cx, cy, back_dy=0.2, z0=0.0):
-    box(name + "_seat", (cx, cy, z0 + 0.45), (0.44, 0.44, 0.06), M['dark'], C_FURN)
-    box(name + "_back", (cx, cy + back_dy, z0 + 0.72), (0.44, 0.06, 0.5), M['dark'], C_FURN)
+    box(name + "_seat", (cx, cy, z0 + 0.45), (0.44, 0.44, 0.06), M['leather'], C_FURN)
+    box(name + "_back", (cx, cy + back_dy, z0 + 0.72), (0.44, 0.06, 0.5), M['leather'], C_FURN)
     box(name + "_pole", (cx, cy, z0 + 0.22), (0.06, 0.06, 0.42), M['metal'], C_FURN)
     box(name + "_base", (cx, cy, z0 + 0.03), (0.4, 0.4, 0.04), M['metal'], C_FURN)
 
@@ -337,8 +458,8 @@ box("Reception_Counter_TopB", (-7.0, -6.2, 1.11), (0.8, 2.9, 0.06), M['accent'],
 box("Reception_Sign_Panel", (-13.7, -5.75, 2.1), (0.15, 3.2, 0.9), M['accent'], C_FURN)
 chair("Reception_Chair", -5.5, -3.9, back_dy=0.22)
 # waiting area
-box("Waiting_Sofa_Base", (-11.5, -8.6, 0.28), (2.2, 0.85, 0.35), M['dark'], C_FURN)
-box("Waiting_Sofa_Back", (-11.5, -9.0, 0.62), (2.2, 0.2, 0.75), M['dark'], C_FURN)
+box("Waiting_Sofa_Base", (-11.5, -8.6, 0.28), (2.2, 0.85, 0.35), M['leather'], C_FURN)
+box("Waiting_Sofa_Back", (-11.5, -9.0, 0.62), (2.2, 0.2, 0.75), M['leather'], C_FURN)
 plant("Reception_Plant", -2.2, -8.9, 0.0)
 plant("Reception_Plant2", -13.2, -9.0, 0.0)
 
@@ -451,7 +572,9 @@ make_cam("Cam_Reception", (-0.5, -9.3, 1.65), (-8.0, -4.2, 1.2), 22)
 make_cam("Cam_Corridor", (-13.6, 0.0, 1.6), (14.0, 0.0, 1.5), 18)
 make_cam("Cam_UpperWorkspace", (-13.2, -8.8, 5.2), (5.0, -3.0, 4.2), 22)
 
-# ============================================================== save
+# ============================================================== UVs + save
+texture_uvs()
+
 bpy.ops.object.select_all(action='DESELECT')
 
 save_path = os.environ.get("OFFICE_BLEND_PATH", os.path.expanduser("~/Work/office-level.blend"))
