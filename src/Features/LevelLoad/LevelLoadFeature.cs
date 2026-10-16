@@ -15,9 +15,9 @@ public sealed class LevelLoadFeature : FeatureBase
     public override void Load(GameWorld world, EventBus events)
     {
         _world = world;
-        Session.LevelId = LevelCatalog.WingB;
+        Session.LevelId = LevelCatalog.Office;
         // Level = CreatePlaceholderLevel(Session.LevelId);
-        Level = CreateTestLevel();
+        Level = CreateOfficeLevel();
         Session.IsLoaded = true;
         world.ActiveLevel = Level;
         world.Sectors.Build(Level);
@@ -27,7 +27,7 @@ public sealed class LevelLoadFeature : FeatureBase
         world.CurrentSectorId = Level.Sectors.Count > 0 ? Level.Sectors[0].Id : "room_a";
         world.VisibleSectorIds.Clear();
         world.VisibleSectorIds.Add(world.CurrentSectorId);
-        world.MissionMessage = "COLD AUDIT // SCOPE: Wing B // Retrieve FINANCE-DR // Exfil lobby";
+        world.MissionMessage = "COLD AUDIT // SCOPE: Office // Retrieve FINANCE-DR // Exfil lobby";
     }
 
     public override void Unload()
@@ -41,6 +41,78 @@ public sealed class LevelLoadFeature : FeatureBase
         Level = null;
         Session.IsLoaded = false;
         _world = null;
+    }
+
+    /// <summary>
+    /// Two-storey office building authored as a single sector. The shell is a
+    /// world-authored mesh (building centred on the origin, entrance on +Z) exported by
+    /// <c>tools/export_level_glb.py</c>: the spawn faces -Z into the lobby, and collision
+    /// comes from the same GLB via <see cref="SectorDef.CollisionMeshPath"/>.
+    /// </summary>
+    private static LevelData CreateOfficeLevel()
+    {
+        var level = new LevelData
+        {
+            LevelId = LevelCatalog.Office,
+            PlayerSpawn = new System.Numerics.Vector3(-1.5f, 1.7f, 8.6f),
+            PlayerSpawnYaw = MathF.PI
+        };
+
+        var shell = LevelCatalog.SectorGlbPath(LevelCatalog.Office, "office");
+        level.Sectors.Add(new SectorDef
+        {
+            Id = "office",
+            ModelPath = shell,
+            CollisionMeshPath = shell
+        });
+
+        AddOfficeLights(level);
+
+        return level;
+    }
+
+    /// <summary>
+    /// One fill light per gameplay area: ground-floor reception and workspace, the
+    /// ground-floor server/security band, and the upper workspace. The shared PBR shader
+    /// is capped at <c>BasicLighting.MaxLights</c> (4) and drops later defs, so these four
+    /// are the whole budget.
+    /// </summary>
+    private static void AddOfficeLights(LevelData level)
+    {
+        var warm = new Raylib_cs.Color(255, 244, 226, 255);
+
+        level.Lights.Add(new LightDef
+        {
+            Id = "light_gf_reception",
+            SectorId = "office",
+            Position = new System.Numerics.Vector3(-7f, 2.9f, 5.75f),
+            Color = warm,
+            Intensity = 10f
+        });
+        level.Lights.Add(new LightDef
+        {
+            Id = "light_gf_workspace",
+            SectorId = "office",
+            Position = new System.Numerics.Vector3(7f, 2.9f, 5.75f),
+            Color = warm,
+            Intensity = 10f
+        });
+        level.Lights.Add(new LightDef
+        {
+            Id = "light_gf_north",
+            SectorId = "office",
+            Position = new System.Numerics.Vector3(-4f, 2.9f, -5.75f),
+            Color = warm,
+            Intensity = 10f
+        });
+        level.Lights.Add(new LightDef
+        {
+            Id = "light_uf_workspace",
+            SectorId = "office",
+            Position = new System.Numerics.Vector3(-4f, 6.4f, 5.75f),
+            Color = warm,
+            Intensity = 10f
+        });
     }
 
     private static LevelData CreateTestLevel()
