@@ -48,7 +48,7 @@ public sealed class PhysicsFeature : FeatureBase
         }
 
         var version = Box3DWorld.NativeVersion;
-        var floorOk = VerifyFloorRaycast(_world);
+        var floorOk = VerifyFloorRaycast(_world, world.ActiveLevel);
         Console.WriteLine(
             $"[Physics] Box3D {version} bodies={_staticBodyCount} walls={_debugWalls.Count} meshColliders={_collisionMeshes.Count} floor={(floorOk ? "OK" : "FAIL")}");
     }
@@ -168,9 +168,19 @@ public sealed class PhysicsFeature : FeatureBase
     public const float WalkableNormalMinY = 0.7f;
 
     /// <summary>
-    /// Max upward correction during the horizontal move (blocks climbing props / launches).
+    /// Max upward correction from plane depenetration. Kept small so mesh edges cannot
+    /// launch or levitate the player; real ledge climbing is <see cref="StepHeight"/>.
     /// </summary>
-    public const float MaxStepUp = 0.08f;
+    public const float MaxResolveUp = 0.08f;
+
+    /// <summary>
+    /// Max ledge the mover will climb when a horizontal sweep is blocked (stairs, kerbs).
+    /// Must exceed the level's stair riser; the office stairs rise ~0.19 m per tread.
+    /// </summary>
+    public const float StepHeight = 0.32f;
+
+    /// <summary>Extra downward probe past the lift so the capsule settles onto the ledge.</summary>
+    private const float StepProbeSkin = 0.06f;
 
     /// <summary>
     /// Quake-style capsule move with separated axes so steep mesh faces cannot lift or
@@ -196,15 +206,22 @@ public sealed class PhysicsFeature : FeatureBase
         var vy = velocity.Y;
         var vz = velocity.Z;
 
-        // --- Horizontal: slide on walls; only tiny step-up allowed (no prop climbing). ---
+        // --- Horizontal: sweep, slide on walls, then try a step-up over low ledges. ---
         var horiz = new B3Vec3(vx * dt, 0f, vz * dt);
         if (horiz.X != 0f || horiz.Z != 0f)
         {
             var fraction = _world.CastMover(origin, in capsule, horiz, _filter);
-            origin = new B3Pos(
-                origin.X + horiz.X * fraction,
-                origin.Y + horiz.Y * fraction,
-                origin.Z + horiz.Z * fraction);
+            if (fraction < 1f && TryStepUp(origin, in capsule, horiz, fraction, out var stepped))
+            {
+                origin = stepped;
+            }
+            else
+            {
+                origin = new B3Pos(
+                    origin.X + horiz.X * fraction,
+                    origin.Y + horiz.Y * fraction,
+                    origin.Z + horiz.Z * fraction);
+            }
         }
 
         Span<B3PlaneResult> contacts = stackalloc B3PlaneResult[16];
@@ -215,7 +232,7 @@ public sealed class PhysicsFeature : FeatureBase
         if (planeCount > 0)
         {
             var solved = Box3DMover.SolvePlanes(default, planes[..planeCount]);
-            var stepY = System.Math.Clamp(solved.Delta.Y, 0f, MaxStepUp);
+            var stepY = System.Math.Clamp(solved.Delta.Y, 0f, MaxResolveUp);
             origin = new B3Pos(
                 origin.X + solved.Delta.X,
                 origin.Y + stepY,
@@ -243,7 +260,7 @@ public sealed class PhysicsFeature : FeatureBase
         {
             var solved = Box3DMover.SolvePlanes(default, planes[..planeCount]);
             // Never launch from vertical resolve; allow settling into floor.
-            var dy = System.Math.Min(solved.Delta.Y, MaxStepUp);
+            var dy = System.Math.Min(solved.Delta.Y, MaxResolveUp);
             origin = new B3Pos(
                 origin.X + solved.Delta.X,
                 origin.Y + dy,
@@ -263,6 +280,63 @@ public sealed class PhysicsFeature : FeatureBase
 
         newFeet = ToVector3(origin);
         newVelocity = new Vector3(vx, vy, vz);
+        return true;
+    }
+
+    /// <summary>
+    /// Quake-style step-up for a blocked horizontal sweep: lift by <see cref="StepHeight"/>,
+    /// retry the sweep, then drop back onto whatever that cleared. Rejected when the lift
+    /// buys no forward progress (a real wall) or when there is nothing to land on.
+    /// </summary>
+    private bool TryStepUp(
+        B3Pos origin,
+        in B3Capsule capsule,
+        B3Vec3 horiz,
+        float blockedFraction,
+        out B3Pos stepped)
+    {
+        stepped = origin;
+        if (_world is null)
+        {
+            return false;
+        }
+
+        var up = _world.CastMover(origin, in capsule, new B3Vec3(0f, StepHeight, 0f), _filter);
+        if (up <= 0f)
+        {
+            return false;
+        }
+
+        var lift = StepHeight * up;
+        var lifted = new B3Pos(origin.X, origin.Y + lift, origin.Z);
+
+        var advancedFraction = _world.CastMover(lifted, in capsule, horiz, _filter);
+        if (advancedFraction <= blockedFraction + 1e-3f)
+        {
+            return false;
+        }
+
+        var advanced = new B3Pos(
+            lifted.X + horiz.X * advancedFraction,
+            lifted.Y + horiz.Y * advancedFraction,
+            lifted.Z + horiz.Z * advancedFraction);
+
+        // Settle onto the ledge. A full-length drop means there is no ledge to stand on.
+        var drop = lift + StepProbeSkin;
+        var dropFraction = _world.CastMover(advanced, in capsule, new B3Vec3(0f, -drop, 0f), _filter);
+        if (dropFraction >= 1f)
+        {
+            return false;
+        }
+
+        var landed = new B3Pos(advanced.X, advanced.Y - drop * dropFraction, advanced.Z);
+        var rise = landed.Y - origin.Y;
+        if (rise > StepHeight + 1e-3f || rise < -StepProbeSkin)
+        {
+            return false;
+        }
+
+        stepped = landed;
         return true;
     }
 
@@ -417,12 +491,18 @@ public sealed class PhysicsFeature : FeatureBase
         return level;
     }
 
-    private static bool VerifyFloorRaycast(Box3DWorld physicsWorld)
+    /// <summary>
+    /// Probes straight down from the level spawn to confirm there is standable ground.
+    /// Spawn-relative rather than a fixed ray from y=5, because a second storey slab sits
+    /// in that ray on multi-floor levels like the office.
+    /// </summary>
+    private static bool VerifyFloorRaycast(Box3DWorld physicsWorld, LevelData? level)
     {
         var filter = Box3DWorld.DefaultQueryFilter();
+        var probe = level?.PlayerSpawn ?? new System.Numerics.Vector3(0f, 1.7f, 0f);
         var hit = physicsWorld.CastRayClosest(
-            new B3Pos(0, 5, 0),
-            new B3Vec3(0, -10, 0),
+            new B3Pos(probe.X, probe.Y, probe.Z),
+            new B3Vec3(0f, -4f, 0f),
             filter);
 
         if (hit.Hit == 0)
@@ -431,10 +511,11 @@ public sealed class PhysicsFeature : FeatureBase
             return false;
         }
 
-        // Floors have top face at FloorY (0).
-        if (hit.Point.Y is < -0.05 or > 0.05)
+        // Ground must be within a storey below the spawn (and not above it).
+        var drop = probe.Y - hit.Point.Y;
+        if (drop is < -0.05f or > 3f)
         {
-            Console.WriteLine($"[Physics] floor hit Y={hit.Point.Y} (want ~0)");
+            Console.WriteLine($"[Physics] floor hit Y={hit.Point.Y:F3} drop={drop:F2} from spawn (want 0..3)");
             return false;
         }
 
