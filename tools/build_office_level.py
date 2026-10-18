@@ -460,7 +460,9 @@ chair("Reception_Chair", -5.5, -3.9, back_dy=0.22)
 # waiting area
 box("Waiting_Sofa_Base", (-11.5, -8.6, 0.28), (2.2, 0.85, 0.35), M['leather'], C_FURN)
 box("Waiting_Sofa_Back", (-11.5, -9.0, 0.62), (2.2, 0.2, 0.75), M['leather'], C_FURN)
-plant("Reception_Plant", -2.2, -8.9, 0.0)
+# West of the entrance doorway (Ext_South_GF opens x -3.0 .. -0.075), not in it: the
+# plant used to stand at x -2.2 and blocked the way out.
+plant("Reception_Plant", -4.3, -9.3, 0.0)
 plant("Reception_Plant2", -13.2, -9.0, 0.0)
 
 # ============================================================== GROUND: workspace
