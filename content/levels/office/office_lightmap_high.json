@@ -1,0 +1,13 @@
+{
+  "image": "office_lightmap.png",
+  "resolution": 4096,
+  "quality": "high",
+  "samples": 64,
+  "diffuse_bounces": 2,
+  "uv_layer": "Lightmap",
+  "coverage": 0.54688,
+  "encode": "srgb",
+  "encode_scale": 0.06631061994007117,
+  "value": "irradiance/pi, linear, albedo excluded",
+  "bake_margin_px": 4
+}
