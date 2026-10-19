@@ -1,0 +1,3774 @@
+{
+  "source": "/home/kenwi/Work/office_assets.blend",
+  "convention": "object location zeroed for export; model origin is (0,0,0)",
+  "models": [
+    {
+      "file": "access_pillar.glb",
+      "object": "AccessPillar",
+      "mesh": "AccessPillar",
+      "layout_location": [
+        0.0,
+        68.640007,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 532,
+      "faces": 506,
+      "tris": 1016,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Screen",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.114,
+        -0.09,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.114,
+        0.09,
+        1.2984
+      ],
+      "size": [
+        0.228,
+        0.18,
+        1.2984
+      ],
+      "bytes": 76320,
+      "glb_node": [
+        "AccessPillar"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "bookcase.glb",
+      "object": "Bookcase",
+      "mesh": "Bookcase",
+      "layout_location": [
+        0.0,
+        49.920002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 504,
+      "faces": 486,
+      "tris": 972,
+      "materials": [
+        "Desk_Wood",
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -0.54,
+        -0.21,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.21,
+        2.16
+      ],
+      "size": [
+        1.08,
+        0.42,
+        2.16
+      ],
+      "bytes": 438360,
+      "glb_node": [
+        "Bookcase"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "break_counter.glb",
+      "object": "BreakCounter",
+      "mesh": "BreakCounter.001",
+      "layout_location": [
+        0.0,
+        44.640003,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 616,
+      "faces": 594,
+      "tris": 1188,
+      "materials": [
+        "Counter_Stone",
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -1.2,
+        -0.36,
+        0.0
+      ],
+      "bbox_local_max": [
+        1.2,
+        0.36,
+        1.2
+      ],
+      "size": [
+        2.4,
+        0.72,
+        1.2
+      ],
+      "bytes": 85336,
+      "glb_node": [
+        "BreakCounter"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "coffee_machine.glb",
+      "object": "CM_Body",
+      "mesh": "CM_Body",
+      "layout_location": [
+        -0.72,
+        44.736,
+        1.08
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 1504,
+      "faces": 1048,
+      "tris": 2784,
+      "materials": [
+        "CM_Glass",
+        "CM_Red",
+        "Ceramic_White",
+        "Coffee",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.168,
+        -0.2664,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.168,
+        0.18,
+        0.6408
+      ],
+      "size": [
+        0.336,
+        0.4464,
+        0.6408
+      ],
+      "bytes": 178856,
+      "glb_node": [
+        "CM_Body"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "coat_rail.glb",
+      "object": "CoatRail",
+      "mesh": "CoatRail",
+      "layout_location": [
+        0.0,
+        89.880005,
+        1.2
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 692,
+      "faces": 658,
+      "tris": 1336,
+      "materials": [
+        "Dark_Leather",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.54,
+        -0.186,
+        -0.648
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.0,
+        0.06
+      ],
+      "size": [
+        1.08,
+        0.186,
+        0.708
+      ],
+      "bytes": 610856,
+      "glb_node": [
+        "CoatRail"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "coffee_table.glb",
+      "object": "CoffeeTable",
+      "mesh": "CoffeeTable",
+      "layout_location": [
+        0.0,
+        11.04,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 112,
+      "faces": 106,
+      "tris": 220,
+      "materials": [
+        "Accent_Blue",
+        "Desk_Wood"
+      ],
+      "bbox_local_min": [
+        -0.66,
+        -0.33,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.66,
+        0.33,
+        0.48
+      ],
+      "size": [
+        1.32,
+        0.66,
+        0.48
+      ],
+      "bytes": 659788,
+      "glb_node": [
+        "CoffeeTable"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "coffee_table_square.glb",
+      "object": "CoffeeTable_Square",
+      "mesh": "CoffeeTable_Square.003",
+      "layout_location": [
+        0.0,
+        14.64,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 116,
+      "faces": 114,
+      "tris": 228,
+      "materials": [
+        "Dark_Leather",
+        "Desk_Wood",
+        "Table_Dark"
+      ],
+      "bbox_local_min": [
+        -0.54,
+        -0.54,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.54,
+        0.486
+      ],
+      "size": [
+        1.08,
+        1.08,
+        0.486
+      ],
+      "bytes": 1337460,
+      "glb_node": [
+        "CoffeeTable_Square"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "stair_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "conf_chair.glb",
+      "object": "ConfChair",
+      "mesh": "ConfChair.002",
+      "layout_location": [
+        0.0,
+        77.520004,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 528,
+      "faces": 476,
+      "tris": 1016,
+      "materials": [
+        "Chair_Grey",
+        "Desk_Wood"
+      ],
+      "bbox_local_min": [
+        -0.276,
+        -0.264,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.276,
+        0.312,
+        1.032
+      ],
+      "size": [
+        0.552,
+        0.576,
+        1.032
+      ],
+      "bytes": 439404,
+      "glb_node": [
+        "ConfChair"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "conf_speaker.glb",
+      "object": "ConfSpeaker",
+      "mesh": "ConfSpeaker",
+      "layout_location": [
+        0.0,
+        80.280006,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 304,
+      "faces": 214,
+      "tris": 580,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.09,
+        -0.09,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.09,
+        0.09,
+        0.078
+      ],
+      "size": [
+        0.18,
+        0.18,
+        0.078
+      ],
+      "bytes": 39988,
+      "glb_node": [
+        "ConfSpeaker"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "conf_table.glb",
+      "object": "ConfTable",
+      "mesh": "ConfTable.001",
+      "layout_location": [
+        0.0,
+        75.480003,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 600,
+      "faces": 584,
+      "tris": 1160,
+      "materials": [
+        "Desk_Wood",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -1.44,
+        -0.66,
+        0.0
+      ],
+      "bbox_local_max": [
+        1.44,
+        0.66,
+        0.9336
+      ],
+      "size": [
+        2.88,
+        1.32,
+        0.9336
+      ],
+      "bytes": 452736,
+      "glb_node": [
+        "ConfTable"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "counter_door_l.glb",
+      "object": "CounterDoor_L",
+      "mesh": "CounterDoor_L",
+      "layout_location": [
+        -1.164,
+        44.314804,
+        0.12
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 124,
+      "faces": 94,
+      "tris": 232,
+      "materials": [
+        "Accent_Blue",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0474,
+        0.0
+      ],
+      "bbox_local_max": [
+        1.1508,
+        0.0108,
+        0.912
+      ],
+      "size": [
+        1.1508,
+        0.0582,
+        0.912
+      ],
+      "bytes": 291384,
+      "glb_node": [
+        "CounterDoor_L"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "counter_door_r.glb",
+      "object": "CounterDoor_R",
+      "mesh": "CounterDoor_R",
+      "layout_location": [
+        1.164,
+        44.314804,
+        0.12
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 124,
+      "faces": 94,
+      "tris": 232,
+      "materials": [
+        "Accent_Blue",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -1.1508,
+        -0.0474,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.0,
+        0.0108,
+        0.912
+      ],
+      "size": [
+        1.1508,
+        0.0582,
+        0.912
+      ],
+      "bytes": 291384,
+      "glb_node": [
+        "CounterDoor_R"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "credenza.glb",
+      "object": "Credenza",
+      "mesh": "Credenza",
+      "layout_location": [
+        0.0,
+        51.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 728,
+      "faces": 702,
+      "tris": 1404,
+      "materials": [
+        "Desk_Wood",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.972,
+        -0.276,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.972,
+        0.276,
+        0.9
+      ],
+      "size": [
+        1.944,
+        0.552,
+        0.9
+      ],
+      "bytes": 469552,
+      "glb_node": [
+        "Credenza"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "credenza_door_l.glb",
+      "object": "CredenzaDoor_L",
+      "mesh": "CredenzaDoor_L",
+      "layout_location": [
+        -0.9312,
+        51.314404,
+        0.12
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 112,
+      "faces": 88,
+      "tris": 208,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0402,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.93,
+        0.0216,
+        0.72
+      ],
+      "size": [
+        0.93,
+        0.0618,
+        0.72
+      ],
+      "bytes": 15660,
+      "glb_node": [
+        "CredenzaDoor_L"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "credenza_door_r.glb",
+      "object": "CredenzaDoor_R",
+      "mesh": "CredenzaDoor_R",
+      "layout_location": [
+        0.9312,
+        51.314404,
+        0.12
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 112,
+      "faces": 88,
+      "tris": 208,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.93,
+        -0.0402,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.0,
+        0.0216,
+        0.72
+      ],
+      "size": [
+        0.93,
+        0.0618,
+        0.72
+      ],
+      "bytes": 15660,
+      "glb_node": [
+        "CredenzaDoor_R"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "cup_espresso.glb",
+      "object": "Cup_Espresso",
+      "mesh": "Cup_Espresso",
+      "layout_location": [
+        0.0,
+        40.632004,
+        0.0066
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 480,
+      "faces": 446,
+      "tris": 948,
+      "materials": [
+        "Ceramic_Dark",
+        "Coffee"
+      ],
+      "bbox_local_min": [
+        -0.03953,
+        -0.03953,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.05226,
+        0.03953,
+        0.06
+      ],
+      "size": [
+        0.09179,
+        0.07907,
+        0.06
+      ],
+      "bytes": 63312,
+      "glb_node": [
+        "Cup_Espresso"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "cup_tea.glb",
+      "object": "Cup_Tea",
+      "mesh": "Cup_Tea",
+      "layout_location": [
+        0.0,
+        40.392002,
+        0.009
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 464,
+      "faces": 444,
+      "tris": 920,
+      "materials": [
+        "Ceramic_White"
+      ],
+      "bbox_local_min": [
+        -0.05153,
+        -0.05153,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.06978,
+        0.05153,
+        0.0744
+      ],
+      "size": [
+        0.12131,
+        0.10306,
+        0.0744
+      ],
+      "bytes": 60520,
+      "glb_node": [
+        "Cup_Tea"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "desk_lamp.glb",
+      "object": "DeskLamp",
+      "mesh": "DeskLamp",
+      "layout_location": [
+        0.0,
+        73.680008,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 488,
+      "faces": 408,
+      "tris": 952,
+      "materials": [
+        "Furniture_Dark",
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.084,
+        -0.26538,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.084,
+        0.084,
+        0.46316
+      ],
+      "size": [
+        0.168,
+        0.34938,
+        0.46316
+      ],
+      "bytes": 65416,
+      "glb_node": [
+        "DeskLamp"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "desk_phone.glb",
+      "object": "DeskPhone",
+      "mesh": "DeskPhone",
+      "layout_location": [
+        0.0,
+        74.160004,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 448,
+      "faces": 408,
+      "tris": 848,
+      "materials": [
+        "Furniture_Dark",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.1392,
+        -0.1116,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.1392,
+        0.12,
+        0.0924
+      ],
+      "size": [
+        0.2784,
+        0.2316,
+        0.0924
+      ],
+      "bytes": 60512,
+      "glb_node": [
+        "DeskPhone"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "desk_standing.glb",
+      "object": "Desk_Standing",
+      "mesh": "Desk_Standing.008",
+      "layout_location": [
+        0.0,
+        19.200001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 600,
+      "faces": 576,
+      "tris": 1184,
+      "materials": [
+        "Accent_Blue",
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -0.84,
+        -0.42,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.84,
+        0.42,
+        0.888
+      ],
+      "size": [
+        1.68,
+        0.84,
+        0.888
+      ],
+      "bytes": 355096,
+      "glb_node": [
+        "Desk_Standing"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "drawer_unit_shell.glb",
+      "object": "DrawerUnit_Shell",
+      "mesh": "DrawerUnit_Shell",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 464,
+      "faces": 440,
+      "tris": 896,
+      "materials": [
+        "Furniture_Dark",
+        "Metal",
+        "Table_Dark"
+      ],
+      "bbox_local_min": [
+        -0.252,
+        -0.336,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.252,
+        0.336,
+        0.804
+      ],
+      "size": [
+        0.504,
+        0.672,
+        0.804
+      ],
+      "bytes": 501108,
+      "glb_node": [
+        "DrawerUnit_Shell"
+      ],
+      "glb_images": [
+        [
+          "stair_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "drawer_1.glb",
+      "object": "Drawer_1",
+      "mesh": "Drawer_1",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 378,
+      "tris": 756,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2316,
+        -0.3576,
+        0.0636
+      ],
+      "bbox_local_max": [
+        0.2316,
+        0.2856,
+        0.20088
+      ],
+      "size": [
+        0.4632,
+        0.6432,
+        0.13728
+      ],
+      "bytes": 55116,
+      "glb_node": [
+        "Drawer_1"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "drawer_2.glb",
+      "object": "Drawer_2",
+      "mesh": "Drawer_2",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 378,
+      "tris": 756,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2316,
+        -0.3576,
+        0.20808
+      ],
+      "bbox_local_max": [
+        0.2316,
+        0.2856,
+        0.34536
+      ],
+      "size": [
+        0.4632,
+        0.6432,
+        0.13728
+      ],
+      "bytes": 55116,
+      "glb_node": [
+        "Drawer_2"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "drawer_3.glb",
+      "object": "Drawer_3",
+      "mesh": "Drawer_3",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 378,
+      "tris": 756,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2316,
+        -0.3576,
+        0.35256
+      ],
+      "bbox_local_max": [
+        0.2316,
+        0.2856,
+        0.48984
+      ],
+      "size": [
+        0.4632,
+        0.6432,
+        0.13728
+      ],
+      "bytes": 55120,
+      "glb_node": [
+        "Drawer_3"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "drawer_4.glb",
+      "object": "Drawer_4",
+      "mesh": "Drawer_4",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 378,
+      "tris": 756,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2316,
+        -0.3576,
+        0.49704
+      ],
+      "bbox_local_max": [
+        0.2316,
+        0.2856,
+        0.63432
+      ],
+      "size": [
+        0.4632,
+        0.6432,
+        0.13728
+      ],
+      "bytes": 55116,
+      "glb_node": [
+        "Drawer_4"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "drawer_5.glb",
+      "object": "Drawer_5",
+      "mesh": "Drawer_5",
+      "layout_location": [
+        0.0,
+        33.600002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 378,
+      "tris": 756,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2316,
+        -0.3576,
+        0.64152
+      ],
+      "bbox_local_max": [
+        0.2316,
+        0.2856,
+        0.7788
+      ],
+      "size": [
+        0.4632,
+        0.6432,
+        0.13728
+      ],
+      "bytes": 55100,
+      "glb_node": [
+        "Drawer_5"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "file_cabinet.glb",
+      "object": "FileCabinet",
+      "mesh": "FileCabinet",
+      "layout_location": [
+        0.0,
+        46.32,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 448,
+      "faces": 432,
+      "tris": 864,
+      "materials": [
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -0.282,
+        -0.372,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.282,
+        0.372,
+        1.584
+      ],
+      "size": [
+        0.564,
+        0.744,
+        1.584
+      ],
+      "bytes": 61716,
+      "glb_node": [
+        "FileCabinet"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "file_drawer_1.glb",
+      "object": "FileDrawer_1",
+      "mesh": "FileDrawer_1",
+      "layout_location": [
+        0.0,
+        45.947998,
+        0.0936
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 460,
+      "faces": 418,
+      "tris": 880,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2748,
+        -0.0462,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.2748,
+        0.6792,
+        0.4752
+      ],
+      "size": [
+        0.5496,
+        0.7254,
+        0.4752
+      ],
+      "bytes": 63324,
+      "glb_node": [
+        "FileDrawer_1"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "file_drawer_2.glb",
+      "object": "FileDrawer_2",
+      "mesh": "FileDrawer_2",
+      "layout_location": [
+        0.0,
+        45.947998,
+        0.5976
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 460,
+      "faces": 418,
+      "tris": 880,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2748,
+        -0.0462,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.2748,
+        0.6792,
+        0.4608
+      ],
+      "size": [
+        0.5496,
+        0.7254,
+        0.4608
+      ],
+      "bytes": 63324,
+      "glb_node": [
+        "FileDrawer_2"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "file_drawer_3.glb",
+      "object": "FileDrawer_3",
+      "mesh": "FileDrawer_3",
+      "layout_location": [
+        0.0,
+        45.947998,
+        1.0872
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 460,
+      "faces": 418,
+      "tris": 880,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.2748,
+        -0.0462,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.2748,
+        0.6792,
+        0.4752
+      ],
+      "size": [
+        0.5496,
+        0.7254,
+        0.4752
+      ],
+      "bytes": 63324,
+      "glb_node": [
+        "FileDrawer_3"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "fire_extinguisher.glb",
+      "object": "FireExtinguisher",
+      "mesh": "FireExtinguisher",
+      "layout_location": [
+        0.0,
+        70.080002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 764,
+      "faces": 652,
+      "tris": 1484,
+      "materials": [
+        "CM_Red",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.0888,
+        -0.0888,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.10501,
+        0.1176,
+        0.648
+      ],
+      "size": [
+        0.19381,
+        0.2064,
+        0.648
+      ],
+      "bytes": 102200,
+      "glb_node": [
+        "FireExtinguisher"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "kettle.glb",
+      "object": "Kettle",
+      "mesh": "Kettle",
+      "layout_location": [
+        0.0,
+        57.480003,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 764,
+      "faces": 652,
+      "tris": 1492,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.1032,
+        -0.13846,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.0984,
+        0.1236,
+        0.2856
+      ],
+      "size": [
+        0.2016,
+        0.26206,
+        0.2856
+      ],
+      "bytes": 100600,
+      "glb_node": [
+        "Kettle"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "key_cabinet.glb",
+      "object": "KeyCabinet",
+      "mesh": "KeyCabinet",
+      "layout_location": [
+        0.0,
+        69.360001,
+        0.276
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 648,
+      "faces": 588,
+      "tris": 1248,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.216,
+        -0.12,
+        -0.276
+      ],
+      "bbox_local_max": [
+        0.216,
+        0.0,
+        0.276
+      ],
+      "size": [
+        0.432,
+        0.12,
+        0.552
+      ],
+      "bytes": 87244,
+      "glb_node": [
+        "KeyCabinet"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "key_cabinet_door.glb",
+      "object": "KeyCabinetDoor",
+      "mesh": "KeyCabinetDoor",
+      "layout_location": [
+        -0.21,
+        69.231606,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 200,
+      "faces": 182,
+      "tris": 380,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0096,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.42,
+        0.0168,
+        0.54
+      ],
+      "size": [
+        0.42,
+        0.0264,
+        0.54
+      ],
+      "bytes": 29900,
+      "glb_node": [
+        "KeyCabinetDoor"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "keyboard.glb",
+      "object": "Keyboard",
+      "mesh": "Keyboard",
+      "layout_location": [
+        0.0,
+        71.880005,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 168,
+      "faces": 164,
+      "tris": 320,
+      "materials": [
+        "Furniture_Dark",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.264,
+        -0.09,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.264,
+        0.09,
+        0.0384
+      ],
+      "size": [
+        0.528,
+        0.18,
+        0.0384
+      ],
+      "bytes": 24824,
+      "glb_node": [
+        "Keyboard"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "laptop_setup.glb",
+      "object": "Laptop_Setup",
+      "mesh": "Laptop_Setup.001",
+      "layout_location": [
+        0.0,
+        30.000002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 678,
+      "faces": 659,
+      "tris": 1336,
+      "materials": [
+        "Dark_Leather",
+        "Furniture_Dark",
+        "Metal",
+        "Screen"
+      ],
+      "bbox_local_min": [
+        -0.348,
+        -0.144,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.19414,
+        0.27441
+      ],
+      "size": [
+        0.888,
+        0.33814,
+        0.27441
+      ],
+      "bytes": 609136,
+      "glb_node": [
+        "Laptop_Setup"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "locker_bank.glb",
+      "object": "LockerBank",
+      "mesh": "LockerBank",
+      "layout_location": [
+        0.0,
+        48.240002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 1090,
+      "faces": 1074,
+      "tris": 2100,
+      "materials": [
+        "Accent_Blue",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.54,
+        -0.27,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.27,
+        2.16
+      ],
+      "size": [
+        1.08,
+        0.54,
+        2.16
+      ],
+      "bytes": 426056,
+      "glb_node": [
+        "LockerBank"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "locker_door_1.glb",
+      "object": "LockerDoor_1",
+      "mesh": "LockerDoor_1",
+      "layout_location": [
+        -0.5232,
+        47.970001,
+        0.108
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 504,
+      "faces": 466,
+      "tris": 964,
+      "materials": [
+        "Accent_Blue",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0306,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.3336,
+        0.0144,
+        2.034
+      ],
+      "size": [
+        0.3336,
+        0.045,
+        2.034
+      ],
+      "bytes": 344892,
+      "glb_node": [
+        "LockerDoor_1"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "locker_door_2.glb",
+      "object": "LockerDoor_2",
+      "mesh": "LockerDoor_2",
+      "layout_location": [
+        -0.1704,
+        47.970001,
+        0.108
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 504,
+      "faces": 466,
+      "tris": 964,
+      "materials": [
+        "Accent_Blue",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0306,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.3336,
+        0.0144,
+        2.034
+      ],
+      "size": [
+        0.3336,
+        0.045,
+        2.034
+      ],
+      "bytes": 344892,
+      "glb_node": [
+        "LockerDoor_2"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "locker_door_3.glb",
+      "object": "LockerDoor_3",
+      "mesh": "LockerDoor_3",
+      "layout_location": [
+        0.1896,
+        47.970001,
+        0.108
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 504,
+      "faces": 466,
+      "tris": 964,
+      "materials": [
+        "Accent_Blue",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        0.0,
+        -0.0306,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.3336,
+        0.0144,
+        2.034
+      ],
+      "size": [
+        0.3336,
+        0.045,
+        2.034
+      ],
+      "bytes": 344892,
+      "glb_node": [
+        "LockerDoor_3"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "microwave.glb",
+      "object": "Microwave",
+      "mesh": "Microwave",
+      "layout_location": [
+        0.0,
+        59.400002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 1104,
+      "faces": 1048,
+      "tris": 2128,
+      "materials": [
+        "CM_Glass",
+        "Furniture_Dark",
+        "Metal",
+        "Screen",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.288,
+        -0.2688,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.288,
+        0.228,
+        0.36
+      ],
+      "size": [
+        0.576,
+        0.4968,
+        0.36
+      ],
+      "bytes": 152980,
+      "glb_node": [
+        "Microwave"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "monitor.glb",
+      "object": "Monitor",
+      "mesh": "Monitor",
+      "layout_location": [
+        0.0,
+        71.040001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 256,
+      "faces": 256,
+      "tris": 496,
+      "materials": [
+        "Furniture_Dark",
+        "Screen"
+      ],
+      "bbox_local_min": [
+        -0.372,
+        -0.0732,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.372,
+        0.1308,
+        0.546
+      ],
+      "size": [
+        0.744,
+        0.204,
+        0.546
+      ],
+      "bytes": 37580,
+      "glb_node": [
+        "Monitor"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "mouse.glb",
+      "object": "Mouse",
+      "mesh": "Mouse",
+      "layout_location": [
+        0.0,
+        72.360001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 120,
+      "faces": 112,
+      "tris": 232,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.042,
+        -0.069,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.042,
+        0.069,
+        0.0552
+      ],
+      "size": [
+        0.084,
+        0.138,
+        0.0552
+      ],
+      "bytes": 18144,
+      "glb_node": [
+        "Mouse"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "mug_classic.glb",
+      "object": "Mug_Classic",
+      "mesh": "Mug_Classic",
+      "layout_location": [
+        0.0,
+        39.792,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 512,
+      "faces": 478,
+      "tris": 1012,
+      "materials": [
+        "Accent_Blue",
+        "Coffee"
+      ],
+      "bbox_local_min": [
+        -0.051,
+        -0.051,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.09282,
+        0.051,
+        0.114
+      ],
+      "size": [
+        0.14382,
+        0.102,
+        0.114
+      ],
+      "bytes": 341916,
+      "glb_node": [
+        "Mug_Classic"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "mug_stoneware.glb",
+      "object": "Mug_Stoneware",
+      "mesh": "Mug_Stoneware",
+      "layout_location": [
+        0.0,
+        40.176003,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 448,
+      "faces": 428,
+      "tris": 888,
+      "materials": [
+        "Ceramic_Dark"
+      ],
+      "bbox_local_min": [
+        -0.0564,
+        -0.0564,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.09462,
+        0.0564,
+        0.0984
+      ],
+      "size": [
+        0.15102,
+        0.1128,
+        0.0984
+      ],
+      "bytes": 58424,
+      "glb_node": [
+        "Mug_Stoneware"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "mug_tall.glb",
+      "object": "Mug_Tall",
+      "mesh": "Mug_Tall",
+      "layout_location": [
+        0.0,
+        39.984001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 480,
+      "faces": 460,
+      "tris": 952,
+      "materials": [
+        "Ceramic_White"
+      ],
+      "bbox_local_min": [
+        -0.048,
+        -0.048,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.09462,
+        0.048,
+        0.138
+      ],
+      "size": [
+        0.14262,
+        0.096,
+        0.138
+      ],
+      "bytes": 62632,
+      "glb_node": [
+        "Mug_Tall"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "office_chair.glb",
+      "object": "OfficeChair",
+      "mesh": "OfficeChair",
+      "layout_location": [
+        0.0,
+        41.400002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 2944,
+      "faces": 2496,
+      "tris": 5724,
+      "materials": [
+        "Chair_Grey",
+        "Chair_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.35318,
+        -0.40749,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.42191,
+        0.40749,
+        1.21634
+      ],
+      "size": [
+        0.77509,
+        0.81498,
+        1.21634
+      ],
+      "bytes": 376216,
+      "glb_node": [
+        "OfficeChair"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "pc_tower.glb",
+      "object": "PCTower",
+      "mesh": "PCTower",
+      "layout_location": [
+        0.0,
+        73.080002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 324,
+      "faces": 298,
+      "tris": 616,
+      "materials": [
+        "Furniture_Dark",
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.12,
+        -0.2922,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.126,
+        0.27,
+        0.54
+      ],
+      "size": [
+        0.246,
+        0.5622,
+        0.54
+      ],
+      "bytes": 45592,
+      "glb_node": [
+        "PCTower"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "paper_bin.glb",
+      "object": "PaperBin",
+      "mesh": "Cone.005",
+      "layout_location": [
+        0.0,
+        60.360001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 96,
+      "faces": 74,
+      "tris": 188,
+      "materials": [
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.168,
+        -0.168,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.168,
+        0.168,
+        0.396
+      ],
+      "size": [
+        0.336,
+        0.336,
+        0.396
+      ],
+      "bytes": 11580,
+      "glb_node": [
+        "PaperBin"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "pinboard.glb",
+      "object": "Pinboard",
+      "mesh": "Pinboard",
+      "layout_location": [
+        0.0,
+        63.600002,
+        0.36
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 384,
+      "faces": 340,
+      "tris": 712,
+      "materials": [
+        "CM_Red",
+        "Ceramic_White",
+        "Cork",
+        "Desk_Wood",
+        "Note_Blue"
+      ],
+      "bbox_local_min": [
+        -0.54,
+        -0.0408,
+        -0.36
+      ],
+      "bbox_local_max": [
+        0.54,
+        0.0,
+        0.36
+      ],
+      "size": [
+        1.08,
+        0.0408,
+        0.72
+      ],
+      "bytes": 421748,
+      "glb_node": [
+        "Pinboard"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "plant_desk.glb",
+      "object": "Plant_Desk",
+      "mesh": "Plant_Desk.001",
+      "layout_location": [
+        0.0,
+        84.239998,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 392,
+      "faces": 288,
+      "tris": 744,
+      "materials": [
+        "Ceramic_White",
+        "Coffee",
+        "Foliage",
+        "Foliage_Dark"
+      ],
+      "bbox_local_min": [
+        -0.08627,
+        -0.0876,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.08627,
+        0.10892,
+        0.39646
+      ],
+      "size": [
+        0.17254,
+        0.19652,
+        0.39646
+      ],
+      "bytes": 50772,
+      "glb_node": [
+        "Plant_Desk"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "plant_floor.glb",
+      "object": "Plant_Floor",
+      "mesh": "Plant_Floor.001",
+      "layout_location": [
+        0.0,
+        82.680008,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 480,
+      "faces": 346,
+      "tris": 908,
+      "materials": [
+        "Coffee",
+        "Foliage",
+        "Foliage_Dark",
+        "Terracotta"
+      ],
+      "bbox_local_min": [
+        -0.2352,
+        -0.2352,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.2352,
+        0.26893,
+        1.16819
+      ],
+      "size": [
+        0.4704,
+        0.50413,
+        1.16819
+      ],
+      "bytes": 60700,
+      "glb_node": [
+        "Plant_Floor"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "queue_post_1.glb",
+      "object": "QueuePost_1",
+      "mesh": "QueuePost_1",
+      "layout_location": [
+        0.0,
+        66.720001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 640,
+      "faces": 550,
+      "tris": 1252,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.192,
+        -0.192,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.192,
+        0.192,
+        1.1568
+      ],
+      "size": [
+        0.384,
+        0.384,
+        1.1568
+      ],
+      "bytes": 85900,
+      "glb_node": [
+        "QueuePost_1"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "queue_post_2.glb",
+      "object": "QueuePost_2",
+      "mesh": "QueuePost_2",
+      "layout_location": [
+        0.0,
+        67.200005,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 640,
+      "faces": 550,
+      "tris": 1252,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.192,
+        -0.192,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.192,
+        0.192,
+        1.1568
+      ],
+      "size": [
+        0.384,
+        0.384,
+        1.1568
+      ],
+      "bytes": 85900,
+      "glb_node": [
+        "QueuePost_2"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "reception_desk.glb",
+      "object": "ReceptionDesk",
+      "mesh": "ReceptionDesk",
+      "layout_location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 148,
+      "faces": 140,
+      "tris": 292,
+      "materials": [
+        "Accent_Blue",
+        "Dark_Leather",
+        "Desk_Wood",
+        "Furniture_Dark",
+        "Table_Dark"
+      ],
+      "bbox_local_min": [
+        -1.488,
+        -0.576,
+        -0.0
+      ],
+      "bbox_local_max": [
+        1.488,
+        0.552,
+        1.29
+      ],
+      "size": [
+        2.976,
+        1.128,
+        1.29
+      ],
+      "bytes": 1617768,
+      "glb_node": [
+        "ReceptionDesk"
+      ],
+      "glb_images": [
+        [
+          "stair_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ],
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "recycling_station.glb",
+      "object": "RecyclingStation",
+      "mesh": "RecyclingStation",
+      "layout_location": [
+        0.0,
+        61.680004,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 816,
+      "faces": 716,
+      "tris": 1592,
+      "materials": [
+        "CM_Red",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Note_Blue",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.372,
+        -0.2544,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.372,
+        0.252,
+        1.02
+      ],
+      "size": [
+        0.744,
+        0.5064,
+        1.02
+      ],
+      "bytes": 109492,
+      "glb_node": [
+        "RecyclingStation"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "rug.glb",
+      "object": "Rug",
+      "mesh": "Rug",
+      "layout_location": [
+        0.0,
+        86.400002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 320,
+      "faces": 314,
+      "tris": 620,
+      "materials": [
+        "Rug_Border",
+        "Rug_Wool"
+      ],
+      "bbox_local_min": [
+        -1.44,
+        -0.96,
+        0.0
+      ],
+      "bbox_local_max": [
+        1.44,
+        0.96,
+        0.0312
+      ],
+      "size": [
+        2.88,
+        1.92,
+        0.0312
+      ],
+      "bytes": 45804,
+      "glb_node": [
+        "Rug"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "saucer_espresso.glb",
+      "object": "Saucer_Espresso",
+      "mesh": "Saucer_Espresso",
+      "layout_location": [
+        0.0,
+        40.632004,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 288,
+      "faces": 266,
+      "tris": 572,
+      "materials": [
+        "Ceramic_White"
+      ],
+      "bbox_local_min": [
+        -0.0624,
+        -0.0624,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.0624,
+        0.0624,
+        0.0108
+      ],
+      "size": [
+        0.1248,
+        0.1248,
+        0.0108
+      ],
+      "bytes": 36944,
+      "glb_node": [
+        "Saucer_Espresso"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "saucer_tea.glb",
+      "object": "Saucer_Tea",
+      "mesh": "Saucer_Tea",
+      "layout_location": [
+        0.0,
+        40.392002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 288,
+      "faces": 266,
+      "tris": 572,
+      "materials": [
+        "Ceramic_White"
+      ],
+      "bbox_local_min": [
+        -0.084,
+        -0.084,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.084,
+        0.084,
+        0.0132
+      ],
+      "size": [
+        0.168,
+        0.168,
+        0.0132
+      ],
+      "bytes": 36932,
+      "glb_node": [
+        "Saucer_Tea"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "security_camera.glb",
+      "object": "SecurityCamera",
+      "mesh": "SecurityCamera",
+      "layout_location": [
+        0.0,
+        67.919998,
+        1.62
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 556,
+      "faces": 472,
+      "tris": 1084,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "LED_Green",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.066,
+        -0.1392,
+        -0.138
+      ],
+      "bbox_local_max": [
+        0.066,
+        0.066,
+        0.0
+      ],
+      "size": [
+        0.132,
+        0.2052,
+        0.138
+      ],
+      "bytes": 75668,
+      "glb_node": [
+        "SecurityCamera"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "server_rack_42u.glb",
+      "object": "ServerRack_42U",
+      "mesh": "ServerRack_42U",
+      "layout_location": [
+        0.0,
+        38.400002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 576,
+      "faces": 626,
+      "tris": 1060,
+      "materials": [
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.36,
+        -0.6,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.36,
+        0.6006,
+        2.39994
+      ],
+      "size": [
+        0.72,
+        1.2006,
+        2.39994
+      ],
+      "bytes": 82288,
+      "glb_node": [
+        "ServerRack_42U"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "server_1u.glb",
+      "object": "Server_1U",
+      "mesh": "Server_1U",
+      "layout_location": [
+        0.0,
+        38.286602,
+        0.26802
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [
+        {
+          "object": "Server_1U_U06",
+          "layout_location": [
+            0.0,
+            38.286602,
+            0.3747
+          ]
+        },
+        {
+          "object": "Server_1U_U12",
+          "layout_location": [
+            0.0,
+            38.286602,
+            0.69474
+          ]
+        }
+      ],
+      "verts": 460,
+      "faces": 448,
+      "tris": 896,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.28956,
+        -0.42264,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.28956,
+        0.4212,
+        0.05334
+      ],
+      "size": [
+        0.57912,
+        0.84384,
+        0.05334
+      ],
+      "bytes": 44788,
+      "glb_node": [
+        "Server_1U"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "server_2u.glb",
+      "object": "Server_2U",
+      "mesh": "Server_2U",
+      "layout_location": [
+        0.0,
+        38.286602,
+        0.108
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [
+        {
+          "object": "Server_2U_U14",
+          "layout_location": [
+            0.0,
+            38.286602,
+            0.80142
+          ]
+        }
+      ],
+      "verts": 590,
+      "faces": 575,
+      "tris": 1156,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Screen",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.28956,
+        -0.42264,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.28956,
+        0.4212,
+        0.10668
+      ],
+      "size": [
+        0.57912,
+        0.84384,
+        0.10668
+      ],
+      "bytes": 56964,
+      "glb_node": [
+        "Server_2U"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "server_3u.glb",
+      "object": "Server_3U",
+      "mesh": "Server_3U",
+      "layout_location": [
+        0.0,
+        38.286602,
+        0.48138
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 664,
+      "faces": 649,
+      "tris": 1304,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Screen",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.28956,
+        -0.42264,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.28956,
+        0.4212,
+        0.16002
+      ],
+      "size": [
+        0.57912,
+        0.84384,
+        0.16002
+      ],
+      "bytes": 64448,
+      "glb_node": [
+        "Server_3U"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "sign_directory.glb",
+      "object": "Sign_Directory",
+      "mesh": "Sign_Directory",
+      "layout_location": [
+        0.0,
+        90.600006,
+        0.21
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 112,
+      "faces": 96,
+      "tris": 192,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Note_Blue"
+      ],
+      "bbox_local_min": [
+        -0.3,
+        -0.0342,
+        -0.21
+      ],
+      "bbox_local_max": [
+        0.3,
+        0.0,
+        0.21
+      ],
+      "size": [
+        0.6,
+        0.0342,
+        0.42
+      ],
+      "bytes": 16540,
+      "glb_node": [
+        "Sign_Directory"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "sofa_2.glb",
+      "object": "Sofa_2",
+      "mesh": "Sofa_2",
+      "layout_location": [
+        0.0,
+        7.92,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 574,
+      "faces": 572,
+      "tris": 1144,
+      "materials": [
+        "Dark_Leather",
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -0.936,
+        -0.51,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.936,
+        0.51,
+        0.864
+      ],
+      "size": [
+        1.872,
+        1.02,
+        0.864
+      ],
+      "bytes": 589176,
+      "glb_node": [
+        "Sofa_2"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "sofa_3.glb",
+      "object": "Sofa_3",
+      "mesh": "Sofa_3.006",
+      "layout_location": [
+        0.0,
+        4.32,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 710,
+      "faces": 708,
+      "tris": 1416,
+      "materials": [
+        "Dark_Leather",
+        "Furniture_Dark"
+      ],
+      "bbox_local_min": [
+        -1.26,
+        -0.51,
+        0.0
+      ],
+      "bbox_local_max": [
+        1.26,
+        0.51,
+        0.864
+      ],
+      "size": [
+        2.52,
+        1.02,
+        0.864
+      ],
+      "bytes": 606300,
+      "glb_node": [
+        "Sofa_3"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "toaster.glb",
+      "object": "Toaster",
+      "mesh": "Toaster",
+      "layout_location": [
+        0.0,
+        58.32,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 316,
+      "faces": 296,
+      "tris": 604,
+      "materials": [
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.162,
+        -0.096,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.1788,
+        0.096,
+        0.2328
+      ],
+      "size": [
+        0.3408,
+        0.192,
+        0.2328
+      ],
+      "bytes": 44068,
+      "glb_node": [
+        "Toaster"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "tumbler.glb",
+      "object": "Tumbler",
+      "mesh": "Tumbler",
+      "layout_location": [
+        0.0,
+        40.824001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 288,
+      "faces": 266,
+      "tris": 572,
+      "materials": [
+        "Ceramic_White"
+      ],
+      "bbox_local_min": [
+        -0.04555,
+        -0.04555,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.04555,
+        0.04555,
+        0.126
+      ],
+      "size": [
+        0.09111,
+        0.09111,
+        0.126
+      ],
+      "bytes": 36928,
+      "glb_node": [
+        "Tumbler"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "vending_machine.glb",
+      "object": "VendingMachine",
+      "mesh": "VendingMachine",
+      "layout_location": [
+        0.0,
+        55.920002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 2432,
+      "faces": 2292,
+      "tris": 4680,
+      "materials": [
+        "Accent_Blue",
+        "CM_Glass",
+        "CM_Red",
+        "Ceramic_White",
+        "Coffee",
+        "Furniture_Dark",
+        "LED_Green",
+        "Metal",
+        "Screen",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.57,
+        -0.4788,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.57,
+        0.45,
+        2.22
+      ],
+      "size": [
+        1.14,
+        0.9288,
+        2.22
+      ],
+      "bytes": 608808,
+      "glb_node": [
+        "VendingMachine"
+      ],
+      "glb_images": [
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "video_bar.glb",
+      "object": "VideoBar",
+      "mesh": "VideoBar.001",
+      "layout_location": [
+        0.0,
+        79.680008,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 376,
+      "faces": 336,
+      "tris": 728,
+      "materials": [
+        "Furniture_Dark",
+        "LED_Green",
+        "Server_Rack"
+      ],
+      "bbox_local_min": [
+        -0.42,
+        -0.096,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.42,
+        0.06,
+        0.12
+      ],
+      "size": [
+        0.84,
+        0.156,
+        0.12
+      ],
+      "bytes": 52460,
+      "glb_node": [
+        "VideoBar"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "waiting_bench.glb",
+      "object": "WaitingBench",
+      "mesh": "WaitingBench",
+      "layout_location": [
+        0.0,
+        65.520004,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 528,
+      "faces": 520,
+      "tris": 1024,
+      "materials": [
+        "Chair_Grey",
+        "Desk_Wood"
+      ],
+      "bbox_local_min": [
+        -0.984,
+        -0.336,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.984,
+        0.345,
+        0.99
+      ],
+      "size": [
+        1.968,
+        0.681,
+        0.99
+      ],
+      "bytes": 442520,
+      "glb_node": [
+        "WaitingBench"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "wall_art_a.glb",
+      "object": "WallArt_A",
+      "mesh": "WallArt_A",
+      "layout_location": [
+        0.0,
+        87.839996,
+        0.54
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 88,
+      "faces": 78,
+      "tris": 156,
+      "materials": [
+        "Accent_Blue",
+        "CM_Red",
+        "Ceramic_White",
+        "Desk_Wood"
+      ],
+      "bbox_local_min": [
+        -0.42,
+        -0.0588,
+        -0.54
+      ],
+      "bbox_local_max": [
+        0.42,
+        0.0,
+        0.54
+      ],
+      "size": [
+        0.84,
+        0.0588,
+        1.08
+      ],
+      "bytes": 657228,
+      "glb_node": [
+        "WallArt_A"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ],
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "wall_art_b.glb",
+      "object": "WallArt_B",
+      "mesh": "WallArt_B",
+      "layout_location": [
+        0.0,
+        88.919998,
+        0.39
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 80,
+      "faces": 72,
+      "tris": 144,
+      "materials": [
+        "Ceramic_White",
+        "Desk_Wood",
+        "Note_Blue"
+      ],
+      "bbox_local_min": [
+        -0.3,
+        -0.0516,
+        -0.39
+      ],
+      "bbox_local_max": [
+        0.3,
+        0.0,
+        0.39
+      ],
+      "size": [
+        0.6,
+        0.0516,
+        0.78
+      ],
+      "bytes": 381340,
+      "glb_node": [
+        "WallArt_B"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "wall_clock.glb",
+      "object": "WallClock",
+      "mesh": "WallClock",
+      "layout_location": [
+        0.0,
+        62.880005,
+        0.18
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 356,
+      "faces": 280,
+      "tris": 692,
+      "materials": [
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -0.18,
+        -0.0684,
+        -0.18
+      ],
+      "bbox_local_max": [
+        0.18,
+        0.0,
+        0.18
+      ],
+      "size": [
+        0.36,
+        0.0684,
+        0.36
+      ],
+      "bytes": 47360,
+      "glb_node": [
+        "WallClock"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "wall_display.glb",
+      "object": "WallDisplay",
+      "mesh": "WallDisplay.001",
+      "layout_location": [
+        0.0,
+        78.839996,
+        0.57
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 168,
+      "faces": 164,
+      "tris": 320,
+      "materials": [
+        "Furniture_Dark",
+        "Metal",
+        "Screen"
+      ],
+      "bbox_local_min": [
+        -0.99,
+        -0.1032,
+        -0.57
+      ],
+      "bbox_local_max": [
+        0.99,
+        0.0,
+        0.57
+      ],
+      "size": [
+        1.98,
+        0.1032,
+        1.14
+      ],
+      "bytes": 25756,
+      "glb_node": [
+        "WallDisplay"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "wall_shelves.glb",
+      "object": "WallShelves",
+      "mesh": "WallShelves",
+      "layout_location": [
+        0.0,
+        44.82,
+        1.92
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 784,
+      "faces": 756,
+      "tris": 1512,
+      "materials": [
+        "Desk_Wood",
+        "Metal"
+      ],
+      "bbox_local_min": [
+        -1.2,
+        -0.18,
+        -0.18
+      ],
+      "bbox_local_max": [
+        1.2,
+        0.18,
+        0.504
+      ],
+      "size": [
+        2.4,
+        0.36,
+        0.684
+      ],
+      "bytes": 476192,
+      "glb_node": [
+        "WallShelves"
+      ],
+      "glb_images": [
+        [
+          "oak_wood_planks_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "water_cooler.glb",
+      "object": "WaterCooler",
+      "mesh": "WaterCooler",
+      "layout_location": [
+        0.0,
+        53.760002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 1048,
+      "faces": 928,
+      "tris": 2040,
+      "materials": [
+        "CM_Glass",
+        "CM_Red",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal",
+        "Note_Blue",
+        "Water"
+      ],
+      "bbox_local_min": [
+        -0.198,
+        -0.2772,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.198,
+        0.21,
+        1.3344
+      ],
+      "size": [
+        0.396,
+        0.4872,
+        1.3344
+      ],
+      "bytes": 143880,
+      "glb_node": [
+        "WaterCooler"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "whiteboard.glb",
+      "object": "Whiteboard",
+      "mesh": "Whiteboard",
+      "layout_location": [
+        0.0,
+        81.480003,
+        0.786
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 432,
+      "faces": 402,
+      "tris": 828,
+      "materials": [
+        "CM_Red",
+        "Ceramic_White",
+        "Furniture_Dark",
+        "Metal",
+        "Note_Blue"
+      ],
+      "bbox_local_min": [
+        -1.128,
+        -0.111,
+        -0.783
+      ],
+      "bbox_local_max": [
+        1.128,
+        0.0,
+        0.768
+      ],
+      "size": [
+        2.256,
+        0.111,
+        1.551
+      ],
+      "bytes": 61812,
+      "glb_node": [
+        "Whiteboard"
+      ],
+      "glb_images": []
+    },
+    {
+      "file": "workstation_single.glb",
+      "object": "Workstation_Single",
+      "mesh": "Workstation_Single.002",
+      "layout_location": [
+        0.0,
+        22.800001,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 952,
+      "faces": 930,
+      "tris": 1876,
+      "materials": [
+        "Accent_Blue",
+        "Dark_Leather",
+        "Furniture_Dark",
+        "Metal",
+        "Screen"
+      ],
+      "bbox_local_min": [
+        -0.756,
+        -0.12,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.624,
+        0.408,
+        0.528
+      ],
+      "size": [
+        1.38,
+        0.528,
+        0.528
+      ],
+      "bytes": 923092,
+      "glb_node": [
+        "Workstation_Single"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ],
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    },
+    {
+      "file": "workstation_wide.glb",
+      "object": "Workstation_Wide",
+      "mesh": "Workstation_Wide.001",
+      "layout_location": [
+        0.0,
+        26.400002,
+        0.0
+      ],
+      "layout_rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "instances": [],
+      "verts": 952,
+      "faces": 930,
+      "tris": 1876,
+      "materials": [
+        "Accent_Blue",
+        "Dark_Leather",
+        "Furniture_Dark",
+        "Metal",
+        "Screen"
+      ],
+      "bbox_local_min": [
+        -0.828,
+        -0.12,
+        0.0
+      ],
+      "bbox_local_max": [
+        0.624,
+        0.414,
+        0.54
+      ],
+      "size": [
+        1.452,
+        0.534,
+        0.54
+      ],
+      "bytes": 923148,
+      "glb_node": [
+        "Workstation_Wide"
+      ],
+      "glb_images": [
+        [
+          "leather_red_02_diffuse",
+          "image/png"
+        ],
+        [
+          "blue_metal_plate_diffuse",
+          "image/png"
+        ]
+      ]
+    }
+  ]
+}
