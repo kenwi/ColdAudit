@@ -32,9 +32,9 @@ Two traps worth restating, both of which silently corrupt something else:
   * The level's stored Cycles settings are 4096 samples, adaptive, 12 bounces with
     denoising - a bake inherits them, which is a three-hour bake. They are set
     explicitly here and restored before saving.
-  * ``lightmap_pack`` writes into the *active* UV layer, and the level's materials
-    sample their base-colour textures through the active UV layer too. The active
-    layer is put back afterwards, or the stills would render through lightmap UVs.
+  * The unwrap writes into the *active* UV layer, and the level's materials sample
+    their base-colour textures through the active UV layer too. The active layer is
+    put back afterwards, or the stills would render through lightmap UVs.
   * A bake reads the *render* UV layer, which is not the same thing as the active
     one: the packer leaves ``UVMap`` flagged, so the bake would otherwise run through
     the tiling UVs and smear repeated geometry across the atlas. The render flag is
@@ -74,10 +74,12 @@ surfaces are lit indirectly and the atlas is stretched over square metres.
 """
 
 import json
+import math
 import os
 import sys
 import time
 
+import bmesh
 import bpy
 import numpy as np
 from PIL import Image
@@ -109,14 +111,6 @@ MICROS_PER_TEXEL_SAMPLE = 0.35
 # between islands; this grows each island's edge colour outwards so bilinear
 # sampling at a UV seam cannot pick up the cleared background.
 BAKE_MARGIN_PX = 4
-
-# Island gap, as a fraction of the atlas, passed to lightmap_pack as
-# PREF_MARGIN_DIV. The operator's default of 0.1 wastes three quarters of the
-# atlas (20% coverage) to leave a gap far wider than the bake margin needs; 0.02
-# still leaves 10 px at 512^2 and 82 px at 4096^2 for a 4 px dilation, and packs
-# the same geometry into 61% of the atlas - three times the texel density for a
-# pack that costs exactly the same 6 s either way.
-PACK_MARGIN_DIV = 0.02
 
 # Interactive tiers, in atlas pixels and samples. `worst` is the cheapest bake that
 # still says something true - 512^2 at 8 samples is about a second of sampling, so
@@ -262,13 +256,41 @@ def restore_uv_state(obj, state):
         layers.active = layers[state["active"]]
 
 
-def pack_lightmap_uvs(targets):
-    """Give every target a freshly packed Lightmap layer, sharing one 0-1 space."""
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in targets:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = targets[0]
+def face_key(me, poly):
+    """Position of a face's corners, independent of which vertex index it uses.
 
+    Welding a copy changes indices and can rotate a face's loop, so the key is
+    canonicalised to start at the smallest corner.
+    """
+    pts = [(round(v.x, 4), round(v.y, 4), round(v.z, 4))
+           for v in (me.vertices[i].co for i in poly.vertices)]
+    k = min(range(len(pts)), key=lambda i: pts[i])
+    return tuple(pts[k:] + pts[:k])
+
+
+def pack_lightmap_uvs(targets):
+    """Give every target a Lightmap layer of continuous charts, packed into 0-1.
+
+    ``lightmap_pack`` gives every face its own island. That is fatal here: the
+    level's meshes are split at most edges (the chair has 10.5k verts for 5.7k
+    tris), so each triangle gets ~3 texels, bakes a single value, and jumps
+    against its neighbours - a per-face mosaic that reads as crumpled foil on the
+    chairs and as triangles across the racks. More resolution does not fix it
+    (still tiled at 0.5 cm/texel); continuity does.
+
+    The originals cannot simply be welded: welding recomputes their custom split
+    normals (32% of the desk's loop normals moved by up to 60 degrees), which
+    would change the stills. So the weld happens on a throwaway copy, the copy is
+    projected with ``smart_project``, and only the resulting UVs are copied back
+    by face position.
+
+    ``pack_islands`` does not scale islands in this Blender, so the charts are
+    shelf packed here from their bounding boxes, area-normalised first, with a
+    proportional gap like lightmap_pack's margin. The layout does not depend on
+    the atlas resolution: it is packed once, and ``--repack`` only when it has to
+    change.
+    """
+    t0 = time.time()
     for obj in targets:
         me = obj.data
         if UV_LAYER in me.uv_layers:
@@ -276,13 +298,132 @@ def pack_lightmap_uvs(targets):
         me.uv_layers.new(name=UV_LAYER)
         me.uv_layers.active = me.uv_layers[UV_LAYER]
 
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.lightmap_pack(PREF_CONTEXT="ALL_FACES", PREF_PACK_IN_ONE=True,
-                             PREF_NEW_UVLAYER=False, PREF_MARGIN_DIV=PACK_MARGIN_DIV)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    # --- charts from welded copies -------------------------------------------
+    coll = bpy.context.scene.collection
+    missing = 0
+    for obj in targets:
+        dup = obj.copy()
+        dup.data = obj.data.copy()
+        coll.objects.link(dup)
+        bm = bmesh.new()
+        bm.from_mesh(dup.data)
+        bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=1e-4)
+        bm.to_mesh(dup.data)
+        bm.free()
 
-    # A bake reads the render map, not the active one, and the packer leaves the
+        me = dup.data
+        if UV_LAYER in me.uv_layers:
+            me.uv_layers.remove(me.uv_layers[UV_LAYER])
+        me.uv_layers.new(name=UV_LAYER)
+        me.uv_layers.active = me.uv_layers[UV_LAYER]
+
+        bpy.ops.object.select_all(action="DESELECT")
+        dup.select_set(True)
+        bpy.context.view_layer.objects.active = dup
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66.0), island_margin=0.0,
+                                 area_weight=0.0, correct_aspect=True,
+                                 scale_to_bounds=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+        src = {}
+        for poly in me.polygons:
+            uvs = [me.uv_layers[UV_LAYER].data[li].uv.copy()
+                   for li in poly.loop_indices]
+            src.setdefault(face_key(me, poly), []).append(uvs)
+        bpy.data.objects.remove(dup, do_unlink=True)
+
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        for poly in me.polygons:
+            found = src.get(face_key(me, poly))
+            if not found:
+                missing += 1  # duplicate/degenerate face, no area to bake
+                continue
+            uvs = found.pop(0) if len(found) > 1 else found[0]
+            for li, uv in zip(poly.loop_indices, uvs):
+                layer.data[li].uv = uv
+
+    # --- charts: faces sharing a corner with the same UV ----------------------
+    charts = []
+    for obj in targets:
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        parent = list(range(len(me.polygons)))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        buckets = {}
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                v = me.vertices[me.loops[li].vertex_index].co
+                uv = layer.data[li].uv
+                key = (round(v.x, 4), round(v.y, 4), round(v.z, 4),
+                       round(uv[0], 5), round(uv[1], 5))
+                buckets.setdefault(key, []).append(poly.index)
+        for ids in buckets.values():
+            r = find(ids[0])
+            for i in ids[1:]:
+                ri = find(i)
+                if ri != r:
+                    parent[ri] = r
+
+        groups = {}
+        for poly in me.polygons:
+            groups.setdefault(find(poly.index), []).extend(poly.loop_indices)
+        for lis in groups.values():
+            uv = np.array([layer.data[li].uv[:] for li in lis], dtype=np.float64)
+            charts.append([uv[:, 0].min(), uv[:, 1].min(),
+                           uv[:, 0].max(), uv[:, 1].max(), obj.name, lis, uv])
+
+    # --- shelf pack, area normalised -----------------------------------------
+    # The gap is proportional, like lightmap_pack's margin: 23k charts in a
+    # 4096 atlas average ~20 px, so a uniform 8 px gap would be a quarter of
+    # every chart and at 512 it would not fit at all.
+    area = sum((c[2] - c[0]) * (c[3] - c[1]) for c in charts)
+    k = (0.60 / area) ** 0.5  # aim at 60% chart area, then fit the shelves
+    order = sorted(range(len(charts)), key=lambda i: -(charts[i][3] - charts[i][1]))
+    x = y = high = wide = 0.0
+    place = {}
+    for i in order:
+        u0, v0, u1, v1 = charts[i][:4]
+        w, h = (u1 - u0) * k, (v1 - v0) * k
+        g = 0.03 * max(w, h)
+        if x + w + 2 * g > 1.0 and x > 0.0:
+            y += high
+            x, high = 0.0, 0.0
+        place[i] = (x + g - u0 * k, y + g - v0 * k)
+        x += w + 2 * g
+        wide = max(wide, x)
+        high = max(high, h + 2 * g)
+    fit = min(1.0 / max(wide, 1e-9), 1.0 / max(y + high, 1e-9))
+    scale = k * fit
+    used = area * scale * scale
+    print(f"  uv        unwrapped {len(targets)} meshes into {len(charts):,} charts, "
+          f"{used*100:.0f}% of the atlas in {time.time()-t0:.1f} s")
+    if missing:
+        print(f"  uv        {missing} zero-area faces had no source face")
+
+    # --- write back -----------------------------------------------------------
+    by_obj = {}
+    for i, c in enumerate(charts):
+        by_obj.setdefault(c[4], []).append(i)
+    for obj in targets:
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        for i in by_obj.get(obj.name, []):
+            u0, v0, u1, v1, _, lis, uv = charts[i]
+            ox, oy = place[i]
+            for li, u, v in zip(lis, (uv[:, 0] * k + ox) * fit,
+                                (uv[:, 1] * k + oy) * fit):
+                layer.data[li].uv = (u, v)
+
+    # A bake reads the render map, not the active one, and the unwrap leaves the
     # tiling layer flagged - so baking here would smear repeated geometry across
     # the atlas. restore_uv_state() puts the flag back after the bake.
     for obj in targets:
@@ -518,11 +659,11 @@ def main():
         print(f"  skipped   {dropped}")
 
     # --- UVs -----------------------------------------------------------------
-    # Repacking is 6 s of a 10 s `worst` run and it invalidates every atlas baked
-    # against the previous layout, so it only happens when the layout has to
-    # change: on a fresh pack, or when the resolution changes and the old margins
-    # no longer apply. Otherwise the existing Lightmap layer is reused, which also
-    # makes a re-bake comparable with the one before it.
+    # Repacking is most of a `worst` run (the weld + smart_project pass is ~20 s)
+    # and it invalidates every atlas baked against the previous layout, so it only
+    # happens when the layout has to change: on a fresh pack, or after editing the
+    # models. Otherwise the existing Lightmap layer is reused, which also makes a
+    # re-bake comparable with the one before it.
     t0 = time.time()
     states = {obj.name: uv_state(obj) for obj in targets}
     packed = all(UV_LAYER in obj.data.uv_layers for obj in targets)
@@ -538,8 +679,6 @@ def main():
     else:
         pack_lightmap_uvs(targets)
         pack_time = time.time() - t0
-        print(f"  uv        packed {len(targets)} objects into one atlas in "
-              f"{pack_time:.1f} s")
     coverage = sum(uv_area(obj) for obj in targets)
     area_m2 = sum(surface_area(obj) for obj in targets)
     texels = coverage * resolution * resolution
