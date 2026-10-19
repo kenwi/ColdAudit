@@ -10,12 +10,16 @@ the .blend. Run it with the exporter in one Blender session:
 
 Save path defaults to ~/Work/office-level.blend; override with OFFICE_BLEND_PATH.
 
+Furniture that is hand-modelled rather than boxed comes from content/models - one
+origin-centred GLB per asset, written by tools/export_models.py - so those files must
+be present for the build to run.
+
 Facade openings are aligned to the interior walls: every opening sits fully inside a
 bay, with a solid pier beside any wall that meets the facade, so no wall terminates
 inside a window or doorway.
 """
 
-import bpy, bmesh, math, os
+import bpy, bmesh, math, os, re
 from mathutils import Vector
 
 
@@ -173,6 +177,22 @@ M['ground']  = make_mat("Ground",            (0.20, 0.24, 0.19), 1.0)
 M['site']    = make_tex_mat("Site_Concrete",  rough=0.90, fallback=(0.62, 0.62, 0.60))
 M['panel']   = make_mat("Ceiling_Light",     (0.95, 0.95, 0.92), 0.5, 0.0, (1.0, 0.97, 0.92), 4.0)
 
+# Imported assets (see import_model below) are re-slotted onto these where the names
+# match, so a model never drags in a duplicate "Table_Dark.001" carrying the same PNG.
+MATERIALS_BY_NAME = {m.name: m for m in M.values()}
+
+# A look that only an asset has - the chair's plain shells, say - is not in MATERIALS_BY_NAME
+# at all, and the importer only de-duplicates against the level's own materials. So the
+# first import of such a material is remembered here by name stem, and every later import
+# of the same look is re-slotted onto it. Without this, thirty-odd chair imports leave
+# Chair_Grey.001 ... Chair_Grey.033 behind, all of them in use.
+IMPORTED_MATERIALS = {}
+
+# Objects that arrived from content/models. They are UV'd per material when they are
+# modelled, so the world-space box projection at the end of the build must leave them
+# alone.
+IMPORTED = []
+
 # ============================================================== geometry helpers
 def _finalize(ob):
     # bake rotation + scale into the mesh, keeping location as the object origin
@@ -213,6 +233,8 @@ def texture_uvs():
     """
     for ob in bpy.data.objects:
         if ob.type != 'MESH' or not ob.data.materials:
+            continue
+        if ob in IMPORTED:
             continue
         mat = ob.data.materials[0]
         if mat is not None and mat.name in TEXTURES:
@@ -411,28 +433,8 @@ railing("UF_Rail_North", (OPEN['x0'], OPEN['y1']), (OPEN['x1'], OPEN['y1']), UF0
 railing("UF_Rail_West", (OPEN['x0'], OPEN['y0']), (OPEN['x0'], OPEN['y1']), UF0, UF0 + 1.05, M['rail'], C_STRUCT)
 
 # ============================================================== furniture builders
-def desk(name, cx, cy, w=1.6, d=0.8, mat=None, z0=0.0):
-    m = mat or M['wood']
-    box(name + "_top", (cx, cy, z0 + 0.74), (w, d, 0.04), m, C_FURN)
-    for k, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
-        box("%s_leg%d" % (name, k), (cx + sx * (w / 2 - 0.06), cy + sy * (d / 2 - 0.06), z0 + 0.36),
-            (0.05, 0.05, 0.72), M['metal'], C_FURN)
-
-def chair(name, cx, cy, back_dy=0.2, z0=0.0):
-    box(name + "_seat", (cx, cy, z0 + 0.45), (0.44, 0.44, 0.06), M['leather'], C_FURN)
-    box(name + "_back", (cx, cy + back_dy, z0 + 0.72), (0.44, 0.06, 0.5), M['leather'], C_FURN)
-    box(name + "_pole", (cx, cy, z0 + 0.22), (0.06, 0.06, 0.42), M['metal'], C_FURN)
-    box(name + "_base", (cx, cy, z0 + 0.03), (0.4, 0.4, 0.04), M['metal'], C_FURN)
-
-def monitor(name, cx, cy, z0=0.0):
-    box(name + "_foot", (cx, cy, z0 + 0.78), (0.18, 0.14, 0.04), M['dark'], C_FURN)
-    box(name + "_pole", (cx, cy, z0 + 0.88), (0.04, 0.04, 0.2), M['dark'], C_FURN)
-    box(name + "_panel", (cx, cy, z0 + 1.06), (0.54, 0.04, 0.34), M['screen'], C_FURN)
-
-def workstation(name, cx, cy, z0=0.0):
-    desk(name + "_desk", cx, cy, z0=z0)
-    monitor(name + "_monitor", cx, cy - 0.18, z0=z0)
-    chair(name + "_chair", cx, cy + 0.75, back_dy=0.22, z0=z0)
+# The chairs are hand-modelled now too - see chair() below, in the imported models
+# section, alongside the desks, monitors and their computer kits.
 
 def light(name, loc, energy=250.0):
     ld = bpy.data.lights.new(name, type='POINT')
@@ -450,13 +452,184 @@ def plant(name, cx, cy, z0):
     box(name + "_pot", (cx, cy, z0 + 0.25), (0.4, 0.4, 0.5), M['dark'], C_FURN)
     box(name + "_leaf", (cx, cy, z0 + 0.85), (0.7, 0.7, 0.9), M['plant'], C_FURN)
 
+# ============================================================== imported models
+# Hand-modelled furniture lives in content/models, one origin-centred GLB per asset
+# (see tools/export_models.py, and _manifest.json for every asset's footprint). An
+# asset is modelled with its origin at the base centre of its own local axes - x across
+# its width, -y out of its front face, z up from the floor - so placing one is a
+# location and a yaw. No scaling, no offset bookkeeping: the model is the size it is.
+#
+# The models were scaled up 20% in office_assets.blend (they read small in game next to
+# the architecture), so every dimension this file reads off a model is multiplied by
+# MODEL_SCALE. The level itself does not scale - rooms, walls and the boxed furniture are
+# unchanged - so these constants are what keep the modelled pieces sitting on, and
+# standing at the right distance from, the things they belong to.
+MODEL_SCALE = 1.2
+MODEL_DIR = os.path.join(repo_root(), "content", "models")
+
+def import_model(filename, name, location, rot_z=0.0, collection=None):
+    """Import an exported asset and place it, its origin at its base centre."""
+    path = os.path.join(MODEL_DIR, filename)
+    if not os.path.isfile(path):
+        raise RuntimeError("missing %s - run tools/export_models.py first" % path)
+
+    before = set(bpy.data.objects)
+    before_mats = set(bpy.data.materials)
+    before_imgs = set(bpy.data.images)
+    bpy.ops.import_scene.gltf(filepath=path)
+    imported = [o for o in bpy.data.objects if o not in before]
+
+    for ob in imported:
+        for coll in list(ob.users_collection):
+            coll.objects.unlink(ob)
+        (collection or C_FURN).objects.link(ob)
+        for slot in ob.material_slots:
+            mat = slot.material
+            if mat is None:
+                continue
+            # The importer has already suffixed a clashing name ("Table_Dark.001"), so
+            # compare on the stem.
+            stem = re.sub(r"\.\d+$", "", mat.name)
+            replacement = MATERIALS_BY_NAME.get(stem) or IMPORTED_MATERIALS.get(stem)
+            if replacement is not None:
+                slot.material = replacement
+            else:
+                IMPORTED_MATERIALS[stem] = mat
+
+    # The import's own copies of those materials (and their packed textures) are now
+    # unreferenced: drop them so the level keeps one material per look.
+    for mat in [m for m in bpy.data.materials if m not in before_mats and m.users == 0]:
+        bpy.data.materials.remove(mat)
+    for img in [i for i in bpy.data.images if i not in before_imgs and i.users == 0]:
+        bpy.data.images.remove(img)
+
+    root = next(o for o in imported if o.parent is None)
+    root.name = name
+    root.location = location
+    # The glTF importer leaves the root in QUATERNION rotation mode, where setting
+    # rotation_euler does nothing at all. Switch mode first, or a yaw is silently lost.
+    root.rotation_mode = 'XYZ'
+    root.rotation_euler = (0.0, 0.0, rot_z)
+    IMPORTED.extend(imported)
+    return root
+
+# Writable worktop height of the modelled standing desk, so a kit can be dropped on it.
+DESK_TOP = 0.74 * MODEL_SCALE
+
+COMPUTERS = {
+    "single": "workstation_single.glb",
+    "wide":   "workstation_wide.glb",
+    "laptop": "laptop_setup.glb",
+}
+
+def computer(name, cx, cy, z, kit="single", yaw=0.0):
+    """A computer arrangement from content/models, sitting on a worktop at z.
+
+    Every kit is modelled with its screens facing -y, so `yaw` is what turns it to
+    face its user: 0 for a user on the -y side of the desk, pi for a user on the +y
+    side. The kit's origin is its base centre, so that is the whole placement.
+    """
+    return import_model(COMPUTERS[kit], name, (cx, cy, z), rot_z=yaw)
+
+def workstation(name, cx, cy, z0=0.0, kit="single", yaw=0.0, user_dy=0.75 * MODEL_SCALE):
+    """A standing desk from content/models with a computer kit on it and a chair at it.
+
+    The desk is the hand-modelled Desk_Standing - 1.40 x 0.70 m with its worktop at
+    0.74 m before scaling, so 1.68 x 0.84 m and 0.888 m as it stands - the same materials
+    as the rest of the level, so it replaces the boxed desk one for one.
+
+    `user_dy` is where the chair goes relative to the desk centre: positive puts the
+    user on the +y side (the workspace rows), negative on the -y side (the two offices).
+    It rides on MODEL_SCALE so the chair keeps about the same clearance in front of a
+    bigger desk, which is also where the modelled chairs will want it. The desk and the
+    kit turn to face whoever is sitting there, and `yaw` adds a small desk-by-desk
+    variation to that.
+    """
+    facing = math.pi if user_dy >= 0 else 0.0
+    import_model("desk_standing.glb", name + "_desk", (cx, cy, z0), rot_z=facing)
+    computer(name + "_" + kit, cx, cy, z0 + DESK_TOP, kit, yaw=facing + yaw)
+    # The chair stands where its user does, so it looks the other way - at the desk.
+    chair(name + "_chair", cx, cy + user_dy, yaw=facing + math.pi, z0=z0)
+
+def chair(name, cx, cy, yaw=0.0, z0=0.0):
+    """An office chair from content/models, placed by the middle of its seat.
+
+    The model is OfficeChair - 0.775 x 0.815 m over its casters and 1.216 m to the top of
+    the backrest, seat at 0.61 m - so it is the tallest thing in the level and the most
+    detailed asset in the set, at 5,724 triangles. Its base is a five-star, which is why
+    its bounding box is asymmetric: the casters reach 0.42 m one way and 0.35 m the other
+    while the seat itself is centred on the origin.
+
+    It is modelled with its backrest on +y and its front face (the way the sitter looks)
+    on -y, so `yaw` 0 leaves it facing -y, as `import_model` does for everything else.
+    Chair call sites read that way: a desk chair gets the desk's facing plus pi, a chair
+    at the +y side of a table gets 0, and the security pair turn to face their console.
+    """
+    return import_model("office_chair.glb", name, (cx, cy, z0), rot_z=yaw)
+
+# Rack units are 44.45 mm, and the 42U opening of the modelled rack starts 0.09 m above
+# its base - both measured off the model as first built, so both ride on MODEL_SCALE (42 x
+# 44.45 = 1.8669 m of opening, matching the mesh). Servers sit in the front half of the
+# rack, 0.0945 m from its centre before scaling, which is where the reference instances in
+# office_assets.blend sit and puts their fronts 5 cm behind the rack's.
+RACK_U = 0.04445 * MODEL_SCALE
+RACK_RAIL_Z = 0.09 * MODEL_SCALE
+RACK_UNITS = 42
+SERVER_SETBACK = 0.0945 * MODEL_SCALE
+
+SERVERS = {1: "server_1u.glb", 2: "server_2u.glb", 3: "server_3u.glb"}
+
+
+def rack_load(index, bulk=False):
+    """The servers in one rack, as (unit, size in U) with unit 1 at the bottom.
+
+    Blocks of servers with gaps between them - the way a working rack is loaded rather
+    than a full cabinet - and no two racks alike: the size and the gap both shift as you
+    walk up the rack, and each rack starts one step further into the sequence than the
+    last. The bulk racks (the room's north row) run to 3U storage boxes, the rest to 1U
+    and 2U compute.
+    """
+    sizes = (1, 2, 1, 1, 3, 1, 2, 1) if bulk else (1, 1, 2, 1, 1, 3, 1, 1)
+    units, unit = [], 1 + index % 4
+    for n, size in enumerate(sizes):
+        if unit + size - 1 > RACK_UNITS:
+            break
+        units.append((unit, size))
+        unit += size + 2 + (index + n) % 3      # 2-4 empty units of airflow between them
+    return units
+
+
+def server_rack(name, cx, cy, yaw=0.0, load=(), z0=0.0):
+    """A 42U rack from content/models with an assortment of servers stacked in it.
+
+    `load` is (unit, size) pairs; a server of size u fills units unit .. unit+u-1,
+    counting up from the bottom of the opening. Placement is a location and a yaw for
+    the rack, and the servers follow it: same footprint, same facing, one rack unit
+    higher per unit. The front the servers face is the rack's own -y, so `yaw` turns the
+    whole loaded rack to face its aisle.
+    """
+    import_model("server_rack_42u.glb", name, (cx, cy, z0), rot_z=yaw)
+    dx, dy = math.sin(yaw), -math.cos(yaw)      # the rack's local -y, in world terms
+    for unit, size in load:
+        import_model(SERVERS[size], "%s_U%02d" % (name, unit),
+                     (cx + dx * SERVER_SETBACK, cy + dy * SERVER_SETBACK,
+                      z0 + RACK_RAIL_Z + (unit - 1) * RACK_U), rot_z=yaw)
+
 # ============================================================== GROUND: reception + entry
-box("Reception_Counter_A", (-4.0, -4.85, 0.55), (6.0, 0.7, 1.1), M['wood2'], C_FURN)
-box("Reception_Counter_B", (-7.0, -6.2, 0.55), (0.7, 2.7, 1.1), M['wood2'], C_FURN)
-box("Reception_Counter_Top", (-4.0, -4.85, 1.11), (6.2, 0.8, 0.06), M['accent'], C_FURN)
-box("Reception_Counter_TopB", (-7.0, -6.2, 1.11), (0.8, 2.9, 0.06), M['accent'], C_FURN)
+# The counter is the hand-modelled reception desk: 2.48 x 0.94 m and 1.075 m high before
+# scaling, so 2.976 x 1.128 m and 1.29 m as it stands. Origin at its base centre, front
+# face facing -Y (the entrance), transaction shelf at the front. It replaces the boxed L
+# that used to run 6.00 m along x here and 2.70 m back along y at x -7, so it is centred
+# on the old counter's main line and its front face stays flush with the old counter front
+# at y -5.20. The front face is 0.48 m out from the model's origin, hence the placement.
+COUNTER_LINE = -5.20
+import_model("reception_desk.glb", "Reception_Counter",
+             (-4.0, COUNTER_LINE + 0.48 * MODEL_SCALE, 0.0))
 box("Reception_Sign_Panel", (-13.7, -5.75, 2.1), (0.15, 3.2, 0.9), M['accent'], C_FURN)
-chair("Reception_Chair", -5.5, -3.9, back_dy=0.22)
+# Behind the counter, facing it (the chair's default -y). The counter's back face lands at
+# y -4.072; the chair's casters reach y -3.96 and its seat front -3.83, so it clears the
+# counter by 0.11 m with the seat tucking under it.
+chair("Reception_Chair", -4.0, -3.55)
 # waiting area
 box("Waiting_Sofa_Base", (-11.5, -8.6, 0.28), (2.2, 0.85, 0.35), M['leather'], C_FURN)
 box("Waiting_Sofa_Back", (-11.5, -9.0, 0.62), (2.2, 0.2, 0.75), M['leather'], C_FURN)
@@ -466,9 +639,15 @@ plant("Reception_Plant", -4.3, -9.3, 0.0)
 plant("Reception_Plant2", -13.2, -9.0, 0.0)
 
 # ============================================================== GROUND: workspace
+# Standing desks with an assortment of computer kits on top. The kits are ordered so no
+# two neighbours repeat, and the laptops sit a little off-square off the way they do in
+# a real office. The user sits on the +y side, so desk and kit face that way.
+GROUND_KITS = ("wide", "laptop", "single", "wide", "laptop", "single")
 for i, x in enumerate([3.0, 7.0, 11.0]):
     for j, y in enumerate([-8.5, -5.5]):
-        workstation("WS_%d%d" % (i, j), x, y)
+        kit = GROUND_KITS[i * 2 + j]
+        yaw = (0.13 if (i + j) % 2 else -0.09) if kit == "laptop" else 0.0
+        workstation("WS_%d%d" % (i, j), x, y, kit=kit, yaw=yaw)
 plant("WS_Plant", 13.2, -2.6, 0.0)
 
 # ============================================================== GROUND: security room
@@ -478,18 +657,23 @@ for r, z in enumerate([1.75, 2.45]):
         box("Security_Screen_%d%d" % (r, c), (-13.7, y, z), (0.06, 1.5, 0.55), M['screen'], C_FURN)
 box("Security_Console", (-11.6, 5.75, 0.38), (1.8, 5.0, 0.76), M['dark'], C_FURN)
 box("Security_Console_Top", (-11.6, 5.75, 0.78), (1.9, 5.2, 0.06), M['wood2'], C_FURN)
-chair("Security_Chair_1", -10.4, 4.4, back_dy=-0.22)
-chair("Security_Chair_2", -10.4, 7.1, back_dy=-0.22)
+# Both face their console (-x), which the boxed stand-in could not do: it could only turn
+# in y, so it sat side-on to its own desk. x -10.2 is as far west as the chair can go
+# before its casters reach into the console body, whose east face is at x -10.7.
+chair("Security_Chair_1", -10.2, 4.4, yaw=-math.pi / 2)
+chair("Security_Chair_2", -10.2, 7.1, yaw=-math.pi / 2)
 # Cabinet sits in the solid flank between the north window and the server divider.
 box("Security_Server", (-6.5, 9.2, 0.9), (0.7, 0.8, 1.8), M['server'], C_FURN)
 
 # ============================================================== GROUND: server room
+# Two rows of hand-modelled 42U racks, facing each other across the aisle and each loaded
+# with an assortment of the modelled servers. The old boxed racks' LED strip and lid go
+# with them: the rack model brings its own top, and the lights in a rack are its servers'.
 for r, y in enumerate([4.5, 8.0]):
     for c, x in enumerate([-5.0, -3.5, -2.0, -0.5]):
-        nm = "Rack_%d%d" % (r, c)
-        box(nm, (x, y, 1.0), (0.6, 1.0, 2.0), M['server'], C_FURN)
-        box(nm + "_led", (x - 0.31, y, 1.55), (0.02, 0.85, 0.08), M['led'], C_FURN)
-        box(nm + "_top", (x, y, 2.03), (0.65, 1.05, 0.06), M['metal'], C_FURN)
+        server_rack("Rack_%d%d" % (r, c), x, y,
+                    yaw=0.0 if r else math.pi,   # the south row faces the aisle to its north
+                    load=rack_load(r * 4 + c, bulk=bool(r)))
 box("Server_Room_AC", (-5.5, 9.5, 1.4), (1.0, 0.6, 2.8), M['metal'], C_FURN)
 
 # ============================================================== GROUND: break room
@@ -498,39 +682,43 @@ box("Break_Counter_Top", (4.5, 9.55, 0.92), (5.6, 0.8, 0.06), M['wood2'], C_FURN
 box("Break_Table", (4.5, 5.5, 0.74), (2.4, 1.2, 0.06), M['wood'], C_FURN)
 box("Break_Table_Leg", (4.5, 5.5, 0.37), (0.15, 0.15, 0.74), M['metal'], C_FURN)
 for k, (dx, dy) in enumerate(((-0.9, -0.9), (0.9, -0.9), (-0.9, 0.9), (0.9, 0.9))):
-    chair("Break_Chair_%d" % k, 4.5 + dx, 5.5 + dy, back_dy=0.22 if dy > 0 else -0.22)
+    chair("Break_Chair_%d" % k, 4.5 + dx, 5.5 + dy, yaw=0.0 if dy > 0 else math.pi)
 
 # ============================================================== GROUND: stairwell rails
 railing("STAIR_Rail_Outer", (STAIR_X0, STAIR_Y1 + 0.12), (STAIR_X1, STAIR_Y1 + 0.12), GF0, GF0 + 1.0, M['rail'], C_STAIRS)
 railing("STAIR_Rail_Inner", (STAIR_X0, STAIR_Y0 - 0.12), (STAIR_X1, STAIR_Y0 - 0.12), GF0, GF0 + 1.0, M['rail'], C_STAIRS)
 
 # ============================================================== UPPER: open workspace
+# The same desks and kits, phased differently so the two floors do not look like the
+# same room twice.
+UPPER_KITS = ("single", "wide", "laptop", "single", "laptop", "wide")
 for i, x in enumerate([-11.0, -7.0, -3.0]):
     for j, y in enumerate([-8.5, -5.5]):
-        workstation("UF_WS_%d%d" % (i, j), x, y, z0=UF0)
+        kit = UPPER_KITS[i * 2 + j]
+        yaw = (0.11 if (i + j) % 2 else -0.13) if kit == "laptop" else 0.0
+        workstation("UF_WS_%d%d" % (i, j), x, y, z0=UF0, kit=kit, yaw=yaw)
 plant("UF_WS_Plant", -13.0, -2.6, UF0)
 
 # ============================================================== UPPER: glass meeting room interior
 box("Meet_Table", (9.0, -6.75, UF0 + 0.74), (2.6, 4.0, 0.08), M['wood'], C_FURN)
 box("Meet_Table_Leg", (9.0, -6.75, UF0 + 0.37), (0.2, 0.2, 0.74), M['metal'], C_FURN)
 for k, (dx, dy) in enumerate(((-1.6, -1.4), (1.6, -1.4), (-1.6, 1.4), (1.6, 1.4))):
-    chair("Meet_Chair_%d" % k, 9.0 + dx, -6.75 + dy, back_dy=0.22 if dy > 0 else -0.22, z0=UF0)
+    chair("Meet_Chair_%d" % k, 9.0 + dx, -6.75 + dy, yaw=0.0 if dy > 0 else math.pi, z0=UF0)
 
 # ============================================================== UPPER: conference room
 box("Conf_Table", (-9.0, 5.75, UF0 + 0.74), (6.0, 2.0, 0.1), M['wood2'], C_FURN)
 box("Conf_Table_Leg", (-9.0, 5.75, UF0 + 0.37), (0.25, 0.25, 0.74), M['metal'], C_FURN)
 for k, (dx, dy) in enumerate(((-2.4, -1.5), (-0.8, -1.5), (0.8, -1.5), (2.4, -1.5),
                               (-2.4, 1.5), (-0.8, 1.5), (0.8, 1.5), (2.4, 1.5))):
-    chair("Conf_Chair_%d" % k, -9.0 + dx, 5.75 + dy, back_dy=0.22 if dy > 0 else -0.22, z0=UF0)
+    chair("Conf_Chair_%d" % k, -9.0 + dx, 5.75 + dy, yaw=0.0 if dy > 0 else math.pi, z0=UF0)
 box("Conf_Screen", (-13.8, 5.75, UF0 + 2.0), (0.1, 3.0, 1.6), M['screen'], C_FURN)
 
 # ============================================================== UPPER: offices
-desk("Office_West_Desk", -2.0, 4.0, 1.8, 0.9, z0=UF0)
-chair("Office_West_Chair", -2.0, 3.0, back_dy=-0.22, z0=UF0)
-monitor("Office_West_Monitor", -2.4, 3.85, z0=UF0)
-desk("Office_East_Desk", 2.0, 4.0, 1.8, 0.9, z0=UF0)
-chair("Office_East_Chair", 2.0, 3.0, back_dy=-0.22, z0=UF0)
-monitor("Office_East_Monitor", 1.6, 3.85, z0=UF0)
+# Same standing desks, but here the user sits on the -y side of the desk, so the desk,
+# the kit and the chair all face the other way. The chairs ride the same MODEL_SCALE
+# stand-off as the workspace rows.
+workstation("Office_West", -2.0, 4.0, z0=UF0, kit="wide", user_dy=-1.0 * MODEL_SCALE)
+workstation("Office_East", 2.0, 4.0, z0=UF0, kit="laptop", user_dy=-1.0 * MODEL_SCALE, yaw=-0.11)
 box("Office_West_Shelf", (-3.7, 8.5, UF0 + 0.9), (0.4, 2.0, 1.8), M['wood2'], C_FURN)
 box("Office_East_Shelf", (3.7, 8.5, UF0 + 0.9), (0.4, 2.0, 1.8), M['wood2'], C_FURN)
 
