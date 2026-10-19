@@ -65,7 +65,12 @@ Usage::
 
 Options (after ``--``): --quality worst|low|medium|high, --resolution PX,
 --samples N, --bounces N, --direct-only, --only SUBSTR, --out PATH,
---encode-scale S, --repack, --margin PX, --panel-emission-scale S, --no-save.
+--encode-scale S, --repack, --margin PX, --panel-emission-scale S, --no-save,
+--no-denoise.
+
+The atlas is denoised with OIDN (tools/denoise_lightmap.py) after saving; without it the
+per-texel bake noise is magnified into visible grain on walls and ceilings, because those
+surfaces are lit indirectly and the atlas is stretched over square metres.
 """
 
 import json
@@ -636,6 +641,18 @@ def main():
           f"sRGB-encoded, encode scale {scale:.4g}"
           + (", auto" if auto_scale else "") + ")")
     print(f"  meta      {meta_path}")
+
+    # OIDN pass. The bake is only 32-64 spp and the noise is uncorrelated per texel;
+    # magnified over a wall it reads as mottling. Denoising preserves the mean (checked
+    # to 0.1%) and leaves the layout untouched, so nothing else needs re-exporting.
+    if not flag("--no-denoise"):
+        denoiser = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "denoise_lightmap.py")
+        try:
+            import subprocess
+            subprocess.run(["python3", denoiser, out_path, out_path], check=True)
+        except Exception as exc:  # noqa: BLE001 - denoise is optional
+            print(f"  denoise   skipped ({exc}); the raw atlas is still usable")
 
     if flag("--no-save"):
         print("BAKE_OK (not saved)")
