@@ -193,8 +193,17 @@ fi
 echo "Using \$BLENDER"
 # --log-level error hides Cycles HIPEW/CUEW "library missing" warnings on
 # machines that only have CUDA (or only HIP), which are harmless.
+bake_log=\$(mktemp)
+trap 'rm -f "\$bake_log"' EXIT
+set +e
 /usr/bin/time -f "WALL_SEC=%e" "\$BLENDER" -b --log-level error ${remote_blend_q} \\
-  -P tools/bake_lightmaps_v2.py -- ${bake_args_q} </dev/null
+  -P tools/bake_lightmaps_v2.py -- ${bake_args_q} </dev/null 2>&1 | tee "\$bake_log"
+bake_rc=\${PIPESTATUS[0]}
+set -e
+if [[ \$bake_rc -ne 0 ]] || ! grep -q 'BAKE_V2_OK' "\$bake_log"; then
+  echo "Bake failed on remote (blender exit=\$bake_rc, no BAKE_V2_OK)." >&2
+  exit 1
+fi
 EOF
 
 echo "==> pull lightmap -> $LOCAL_OFFICE/"

@@ -63,11 +63,11 @@ EXCLUDE_NAMES = {"Ground"}
 BAKE_MARGIN_PX = 4
 PACK_RESOLUTION = 4096
 
-# preview: cheap sanity check. high: production-ish. production: slower, cleaner shadows.
-# adaptive=0 means fixed sample count (predictable). A low adaptive threshold with a
-# low min_samples can lock in self-shadow blacks before path guiding helps.
+# preview: cheapest smoke test. Packing is always at PACK_RESOLUTION; bake margin
+# scales down with the atlas (see bake_margin_for) and can be 0 at this size.
+# adaptive=0 means fixed sample count (predictable).
 QUALITY = {
-    "preview":    {"resolution": 1024, "samples": 64,   "min_samples": 64,  "bounces": 2,
+    "preview":    {"resolution": 256,  "samples": 8,    "min_samples": 8,   "bounces": 1,
                    "adaptive": 0.0,    "guiding": False},
     "medium":     {"resolution": 2048, "samples": 256,  "min_samples": 64,  "bounces": 3,
                    "adaptive": 0.01,   "guiding": True},
@@ -76,6 +76,20 @@ QUALITY = {
     "production": {"resolution": 4096, "samples": 1024, "min_samples": 256, "bounces": 6,
                    "adaptive": 0.002,  "guiding": True},
 }
+
+
+def bake_margin_for(bake_resolution, pack_resolution=PACK_RESOLUTION,
+                    pack_margin=BAKE_MARGIN_PX):
+    """Bake-margin in pixels of the bake atlas, matched to the packed gutter.
+
+    Packing puts ``2 * pack_margin`` blank pixels between charts at
+    ``pack_resolution``. At a smaller bake those UV gaps cover fewer texels, so
+    the dilation has to shrink or it crosses into the next chart again.
+    """
+    if bake_resolution <= 0 or pack_resolution <= 0:
+        return 0
+    gutter_at_bake = 2 * pack_margin * bake_resolution / pack_resolution
+    return max(0, min(pack_margin, int(gutter_at_bake // 2)))
 
 
 def argv_after_ddash():
@@ -684,9 +698,9 @@ def main():
     guiding = preset["guiding"]
     pack_margin = int(opt("--margin", str(BAKE_MARGIN_PX)))
     # Bake margin scales with atlas size relative to the pack resolution.
-    margin = max(1, int(round(pack_margin * resolution / PACK_RESOLUTION)))
-    if resolution >= PACK_RESOLUTION:
-        margin = pack_margin
+    # Do not force a 1 px floor: at low bake sizes the packed gutter is already
+    # sub-pixel, and a forced margin fails assert_chart_gutter every time.
+    margin = bake_margin_for(resolution, PACK_RESOLUTION, pack_margin)
 
     out_path = opt("--out") or os.path.join(
         resolve_levels_dir(), LEVEL_ID, f"{SECTOR_ID}_lightmap.png")
@@ -842,4 +856,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        # Blender -b often exits 0 after an uncaught -P exception; force failure
+        # so bake_transfer.sh / full_rebuild.sh stop before pulling stale atlases.
+        sys.exit(1)
