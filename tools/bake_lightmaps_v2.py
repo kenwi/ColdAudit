@@ -44,6 +44,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -818,6 +819,20 @@ def main():
                                 "denoise_lightmap.py")
         subprocess.run(["python3", denoiser, out_path, out_path], check=True)
         print(f"  denoise   applied via {denoiser}")
+
+    # Keep a quality-tagged snapshot of the final atlas (post-denoise) so we can
+    # revert the live office_lightmap.* pair without re-baking.
+    stem, ext = os.path.splitext(out_path)
+    archive_png = f"{stem}_{quality}{ext}"
+    archive_json = f"{stem}_{quality}.json"
+    shutil.copy2(out_path, archive_png)
+    with open(meta_path, "r") as fh:
+        meta = json.load(fh)
+    meta["image"] = os.path.basename(archive_png)
+    with open(archive_json, "w") as fh:
+        json.dump(meta, fh, indent=2)
+    print(f"  archive   {archive_png}")
+    print(f"  archive   {archive_json}")
 
     if flag("--no-save"):
         print("BAKE_V2_OK (not saved)")

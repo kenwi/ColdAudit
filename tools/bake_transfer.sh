@@ -203,6 +203,8 @@ rsync -az --progress \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.png" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.json" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_raw.npz" \
+  "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_${QUALITY}.png" \
+  "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_${QUALITY}.json" \
   "$LOCAL_OFFICE/"
 
 echo "==> pull blend -> $LOCAL_BLEND"
@@ -211,4 +213,6 @@ rsync -az --progress "$REMOTE:$REMOTE_BLEND_EXPANDED" "$LOCAL_BLEND"
 echo "Done. host=$REMOTE quality=$QUALITY device=$DEVICE denoise=$(denoise_label)"
 ls -la \
   "$LOCAL_OFFICE/office_lightmap.png" \
-  "$LOCAL_OFFICE/office_lightmap.json"
+  "$LOCAL_OFFICE/office_lightmap.json" \
+  "$LOCAL_OFFICE/office_lightmap_${QUALITY}.png" \
+  "$LOCAL_OFFICE/office_lightmap_${QUALITY}.json"
