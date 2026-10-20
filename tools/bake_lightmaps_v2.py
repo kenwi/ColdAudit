@@ -9,10 +9,11 @@ outputs the game already reads:
 What changed relative to v1 (and why), based on Blender docs / The Lightmapper
 / common game-lightmap practice:
 
-  * UV: Smart UV Project + Average Island Scale + Pack Islands with a
-    **fraction** margin in atlas pixels. Prefer continuous charts over
-    Lightmap Pack (per-face islands). Still weld a throwaway copy before
-    projecting so imported split-normal meshes do not become a triangle mosaic.
+  * UV: Smart UV Project on a welded throwaway copy (continuous charts, not
+    per-face islands), then **pixel shelf pack** with a ``2 x margin`` gutter
+    between charts so EXTEND dilation and bilinear sampling cannot pull black
+    neighbour texels. Blender's pack_islands corrupts this joined mesh; do not
+    use it.
   * Sampling: adaptive sampling + path guiding + light tree. Interiors put
     noise in the shadows; adaptive spends samples there, guiding finds the
     ceiling panels. Cycles bake uses these render settings.
@@ -165,21 +166,6 @@ def face_key(me, poly):
     return tuple(pts[k:] + pts[:k])
 
 
-def face_centroid_key(obj, poly, world=True):
-    """Stable face id: centroid + normal, in world or local space."""
-    me = obj.data
-    if world:
-        mw = obj.matrix_world
-        pts = [mw @ me.vertices[i].co for i in poly.vertices]
-        n = (mw.to_3x3() @ poly.normal).normalized()
-    else:
-        pts = [me.vertices[i].co for i in poly.vertices]
-        n = poly.normal.normalized()
-    c = sum(pts, pts[0].__class__((0, 0, 0))) / len(pts)
-    return (round(c.x, 3), round(c.y, 3), round(c.z, 3),
-            round(n.x, 2), round(n.y, 2), round(n.z, 2))
-
-
 def uv_area(obj):
     me = obj.data
     layer = me.uv_layers[UV_LAYER]
@@ -204,26 +190,129 @@ def surface_area(obj):
     return total * abs(scale.x * scale.y)
 
 
-# ============================================================== UV (native pack)
-def ensure_lightmap_layer(obj):
-    me = obj.data
-    if UV_LAYER in me.uv_layers:
-        me.uv_layers.remove(me.uv_layers[UV_LAYER])
-    me.uv_layers.new(name=UV_LAYER)
-    me.uv_layers.active = me.uv_layers[UV_LAYER]
+# ============================================================== UV (pixel shelf pack)
+def collect_lightmap_charts(targets):
+    """Build chart records from the Lightmap layer: bbox, object, loops, uvs."""
+    charts = []
+    for obj in targets:
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        parent = list(range(len(me.polygons)))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        buckets = {}
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                v = me.vertices[me.loops[li].vertex_index].co
+                uv = layer.data[li].uv
+                key = (round(v.x, 4), round(v.y, 4), round(v.z, 4),
+                       round(uv[0], 5), round(uv[1], 5))
+                buckets.setdefault(key, []).append(poly.index)
+        for ids in buckets.values():
+            r = find(ids[0])
+            for i in ids[1:]:
+                ri = find(i)
+                if ri != r:
+                    parent[ri] = r
+
+        groups = {}
+        for poly in me.polygons:
+            groups.setdefault(find(poly.index), []).extend(poly.loop_indices)
+        for lis in groups.values():
+            uv = np.array([layer.data[li].uv[:] for li in lis], dtype=np.float64)
+            w = float(uv[:, 0].max() - uv[:, 0].min())
+            h = float(uv[:, 1].max() - uv[:, 1].min())
+            if w <= 0.0 or h <= 0.0:
+                continue
+            charts.append([float(uv[:, 0].min()), float(uv[:, 1].min()),
+                           float(uv[:, 0].max()), float(uv[:, 1].max()),
+                           obj.name, lis, uv])
+    return charts
 
 
-def project_continuous_charts(targets):
-    """Smart-project continuous charts via a welded throwaway copy per mesh.
+def nearest_chart_gaps_px(charts, resolution):
+    """Nearest-neighbour AABB gap between charts, in atlas pixels."""
+    if len(charts) < 2:
+        return np.array([], dtype=np.float64)
+    boxes = np.array([
+        [c[0] * resolution, c[1] * resolution, c[2] * resolution, c[3] * resolution]
+        for c in charts
+    ], dtype=np.float64)
+    cell = 32.0
+    centers = ((boxes[:, 0] + boxes[:, 2]) * 0.5,
+               (boxes[:, 1] + boxes[:, 3]) * 0.5)
+    grid = {}
+    for i, (cx, cy) in enumerate(zip(centers[0], centers[1])):
+        grid.setdefault((int(cx // cell), int(cy // cell)), []).append(i)
+    gaps = np.empty(len(boxes), dtype=np.float64)
+    gaps.fill(1e9)
+    for i, (x0, y0, x1, y1) in enumerate(boxes):
+        cx, cy = int(centers[0][i] // cell), int(centers[1][i] // cell)
+        best = 1e9
+        for ox in range(-2, 3):
+            for oy in range(-2, 3):
+                for j in grid.get((cx + ox, cy + oy), ()):
+                    if j == i:
+                        continue
+                    a, b, c, d = boxes[j]
+                    dx = max(0.0, max(x0 - c, a - x1))
+                    dy = max(0.0, max(y0 - d, b - y1))
+                    if dx == 0.0 and dy == 0.0:
+                        sep = 0.0
+                    elif dx == 0.0:
+                        sep = dy
+                    elif dy == 0.0:
+                        sep = dx
+                    else:
+                        sep = math.hypot(dx, dy)
+                    if sep < best:
+                        best = sep
+        gaps[i] = best
+    return gaps[gaps < 1e8]
 
-    Imported office furniture is split at most edges. Projecting the live mesh
-    gives one island per triangle. Welding on a copy, projecting, then copying
-    UVs back by face position keeps stills' custom normals intact.
+
+def assert_chart_gutter(targets, resolution, margin_px):
+    """Refuse to bake when chart gutters are narrower than the bake margin."""
+    charts = collect_lightmap_charts(targets)
+    gaps = nearest_chart_gaps_px(charts, resolution)
+    if gaps.size == 0:
+        return
+    median = float(np.median(gaps))
+    p10 = float(np.percentile(gaps, 10))
+    frac_lt = float((gaps < margin_px).mean())
+    print(f"  gutter    median {median:.2f} px  p10 {p10:.2f} px  "
+          f"{frac_lt * 100:.1f}% of charts closer than the {margin_px} px margin")
+    if median + 1e-6 < margin_px:
+        raise RuntimeError(
+            f"Lightmap chart gutter is too tight for a {margin_px} px bake margin "
+            f"(median nearest-neighbour gap {median:.2f} px at {resolution}^2). "
+            f"Re-run with --repack so charts are packed in pixel space."
+        )
+
+
+def pack_lightmap_uvs(targets, resolution, margin_px):
+    """Continuous charts via welded copies, then pixel shelf pack with gutters.
+
+    Each chart gets ``margin_px`` pad on every side so neighbouring islands sit
+    ``2 x margin`` apart. That is what EXTEND dilation and bilinear sampling need
+    so wall edges do not sample black cracks or the next chart.
     """
+    t0 = time.time()
+    for obj in targets:
+        me = obj.data
+        if UV_LAYER in me.uv_layers:
+            me.uv_layers.remove(me.uv_layers[UV_LAYER])
+        me.uv_layers.new(name=UV_LAYER)
+        me.uv_layers.active = me.uv_layers[UV_LAYER]
+
     coll = bpy.context.scene.collection
     missing = 0
     for obj in targets:
-        ensure_lightmap_layer(obj)
         dup = obj.copy()
         dup.data = obj.data.copy()
         coll.objects.link(dup)
@@ -233,13 +322,17 @@ def project_continuous_charts(targets):
         bm.to_mesh(dup.data)
         bm.free()
 
-        ensure_lightmap_layer(dup)
+        me = dup.data
+        if UV_LAYER in me.uv_layers:
+            me.uv_layers.remove(me.uv_layers[UV_LAYER])
+        me.uv_layers.new(name=UV_LAYER)
+        me.uv_layers.active = me.uv_layers[UV_LAYER]
+
         bpy.ops.object.select_all(action="DESELECT")
         dup.select_set(True)
         bpy.context.view_layer.objects.active = dup
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        # Continuous charts; packing margin is applied later in pixel fraction.
         bpy.ops.uv.smart_project(
             angle_limit=math.radians(66.0),
             island_margin=0.0,
@@ -250,137 +343,110 @@ def project_continuous_charts(targets):
         bpy.ops.object.mode_set(mode="OBJECT")
 
         src = {}
-        layer = dup.data.uv_layers[UV_LAYER]
-        for poly in dup.data.polygons:
-            uvs = [layer.data[li].uv.copy() for li in poly.loop_indices]
-            src.setdefault(face_key(dup.data, poly), []).append(uvs)
+        for poly in me.polygons:
+            uvs = [me.uv_layers[UV_LAYER].data[li].uv.copy()
+                   for li in poly.loop_indices]
+            src.setdefault(face_key(me, poly), []).append(uvs)
         bpy.data.objects.remove(dup, do_unlink=True)
 
-        layer = obj.data.uv_layers[UV_LAYER]
-        for poly in obj.data.polygons:
-            found = src.get(face_key(obj.data, poly))
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        for poly in me.polygons:
+            found = src.get(face_key(me, poly))
             if not found:
                 missing += 1
                 continue
             uvs = found.pop(0) if len(found) > 1 else found[0]
             for li, uv in zip(poly.loop_indices, uvs):
                 layer.data[li].uv = uv
-    return missing
 
+    charts = collect_lightmap_charts(targets)
+    if not charts:
+        raise RuntimeError("No lightmap charts to pack.")
 
-def _uv_range(layer):
-    us = [layer.data[i].uv[0] for i in range(len(layer.data))]
-    vs = [layer.data[i].uv[1] for i in range(len(layer.data))]
-    return min(us), max(us), min(vs), max(vs)
+    pad = float(margin_px)
+    area = sum((c[2] - c[0]) * (c[3] - c[1]) for c in charts)
+    order = sorted(range(len(charts)), key=lambda i: -(charts[i][3] - charts[i][1]))
+
+    def shelf(scale):
+        x = y = high = wide = 0.0
+        place = {}
+        for i in order:
+            u0, v0, u1, v1 = charts[i][:4]
+            w = (u1 - u0) * scale
+            h = (v1 - v0) * scale
+            if x + w + 2.0 * pad > resolution and x > 0.0:
+                y += high
+                x, high = 0.0, 0.0
+            place[i] = (x + pad - u0 * scale, y + pad - v0 * scale)
+            x += w + 2.0 * pad
+            wide = max(wide, x)
+            high = max(high, h + 2.0 * pad)
+        return place, wide, y + high
+
+    hi = resolution / max(area ** 0.5, 1e-12)
+    lo = hi * 1e-6
+    best_place, best_scale = None, None
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        place, wide, tall = shelf(mid)
+        if wide <= resolution + 1e-6 and tall <= resolution + 1e-6:
+            lo = mid
+            best_place, best_scale = place, mid
+        else:
+            hi = mid
+    if best_place is None:
+        min_pad = len(charts) * (2.0 * pad) ** 2
+        raise RuntimeError(
+            f"Cannot pack {len(charts):,} charts into {resolution}^2 with a "
+            f"{margin_px} px margin "
+            f"(pad floor {min_pad / resolution**2 * 100:.0f}% of the atlas). "
+            f"Raise PACK_RESOLUTION or lower the margin."
+        )
+
+    used = area * (best_scale / resolution) ** 2
+    print(f"  uv        unwrapped {len(targets)} meshes into {len(charts):,} charts, "
+          f"{used * 100:.0f}% of the atlas "
+          f"(pixel pad {margin_px} px/side @ {resolution}) "
+          f"in {time.time() - t0:.1f} s")
+    if missing:
+        print(f"  uv        {missing} zero-area faces had no source face")
+
+    inv = 1.0 / resolution
+    by_obj = {}
+    for i, c in enumerate(charts):
+        by_obj.setdefault(c[4], []).append(i)
+    for obj in targets:
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        for i in by_obj.get(obj.name, []):
+            _, _, _, _, _, lis, uv = charts[i]
+            ox, oy = best_place[i]
+            for li, u, v in zip(lis,
+                                (uv[:, 0] * best_scale + ox) * inv,
+                                (uv[:, 1] * best_scale + oy) * inv):
+                layer.data[li].uv = (u, v)
+
+    for obj in targets:
+        layers = obj.data.uv_layers
+        for layer in layers:
+            layer.active_render = (layer.name == UV_LAYER)
 
 
 def make_uv_bake_proxy(targets, resolution, margin_px):
-    """Join targets, unwrap+pack Lightmap UVs, return the proxy (caller bakes it)."""
+    """Pack Lightmap UVs on the originals, then build the joined bake proxy."""
     t0 = time.time()
-    gutter = 2 * margin_px
-    margin_uv = gutter / float(resolution)
-
-    for obj in targets:
-        ensure_lightmap_layer(obj)
-
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in targets:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = targets[0]
-    bpy.ops.object.duplicate()
-    copies = [o for o in bpy.context.selected_objects if o.type == "MESH"]
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    if len(copies) > 1:
-        bpy.ops.object.select_all(action="DESELECT")
-        for obj in copies:
-            obj.select_set(True)
-        bpy.context.view_layer.objects.active = copies[0]
-        bpy.ops.object.join()
-        copies = [bpy.context.view_layer.objects.active]
-    proxy = copies[0]
-    proxy.name = "__lightmap_proxy"
-
-    ensure_lightmap_layer(proxy)
-    bpy.ops.object.select_all(action="DESELECT")
-    proxy.select_set(True)
-    bpy.context.view_layer.objects.active = proxy
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    # smart_project alone yields ~70% coverage on this joined mesh. pack_islands
-    # and average_islands_scale both corrupt it (charts collapse or areas explode
-    # to 1e28) - measured in Blender 5.2.2 on the office sector.
-    bpy.ops.uv.smart_project(
-        angle_limit=math.radians(66.0),
-        island_margin=0.0,
-        area_weight=0.0,
-        correct_aspect=True,
-        scale_to_bounds=False,
-    )
-    bpy.ops.object.mode_set(mode="OBJECT")
-
-    layer = proxy.data.uv_layers[UV_LAYER]
-    u0, u1, v0, v1 = _uv_range(layer)
-    # Fit into 0-1 with a pixel gutter. Avoid pack_islands on this mesh.
-    span = max(u1 - u0, v1 - v0, 1e-9)
-    pad = margin_uv
-    scale = (1.0 - 2.0 * pad) / span
-    for i in range(len(layer.data)):
-        u, v = layer.data[i].uv
-        layer.data[i].uv = ((u - u0) * scale + pad, (v - v0) * scale + pad)
-    u0, u1, v0, v1 = _uv_range(layer)
-    print(f"  uv        smart_project fitted "
-          f"U[{u0:.3f},{u1:.3f}] V[{v0:.3f},{v1:.3f}]")
-
-    for uv_layer in proxy.data.uv_layers:
-        uv_layer.active_render = (uv_layer.name == UV_LAYER)
-        uv_layer.active = (uv_layer.name == UV_LAYER)
-
-    # Coverage of the proxy alone (the atlas truth).
-    lm = proxy.data.uv_layers[UV_LAYER]
-    coverage = 0.0
-    for poly in proxy.data.polygons:
-        uvs = [lm.data[li].uv for li in poly.loop_indices]
-        for k in range(1, len(uvs) - 1):
-            (x0, y0), (x1, y1), (x2, y2) = uvs[0], uvs[k], uvs[k + 1]
-            coverage += abs((x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)) * 0.5
-
-    print(f"  uv        joined smart_project "
-          f"(fraction margin {margin_uv:.6f} = {gutter} px @ {resolution}) "
-          f"coverage {coverage * 100:.1f}% in {time.time() - t0:.1f} s")
+    pack_lightmap_uvs(targets, resolution, margin_px)
+    assert_chart_gutter(targets, resolution, margin_px)
+    coverage = sum(uv_area(obj) for obj in targets)
+    proxy = make_bake_proxy(targets)
+    for layer in proxy.data.uv_layers:
+        layer.active_render = (layer.name == UV_LAYER)
+        layer.active = (layer.name == UV_LAYER)
+    print(f"  uv        pixel-shelf pack @ {resolution} "
+          f"(gutter {2 * margin_px} px) coverage {coverage * 100:.1f}% "
+          f"in {time.time() - t0:.1f} s")
     return proxy, coverage
-
-
-def copy_lightmap_uvs_from_proxy(proxy, targets):
-    """Write proxy Lightmap UVs back onto the originals for GLB export."""
-    layer = proxy.data.uv_layers[UV_LAYER]
-    packed = {}
-    for poly in proxy.data.polygons:
-        uvs = [layer.data[li].uv.copy() for li in poly.loop_indices]
-        packed.setdefault(face_centroid_key(proxy, poly, world=False), []).append(uvs)
-
-    missing = 0
-    for obj in targets:
-        if UV_LAYER in obj.data.uv_layers:
-            obj.data.uv_layers.remove(obj.data.uv_layers[UV_LAYER])
-        obj.data.uv_layers.new(name=UV_LAYER)
-        dst = obj.data.uv_layers[UV_LAYER]
-        for poly in obj.data.polygons:
-            key = face_centroid_key(obj, poly, world=True)
-            found = packed.get(key)
-            if not found:
-                missing += 1
-                continue
-            uvs = found.pop(0) if len(found) > 1 else found[0]
-            if len(uvs) != len(poly.loop_indices):
-                missing += 1
-                continue
-            for li, uv in zip(poly.loop_indices, uvs):
-                dst.data[li].uv = uv
-        for lyr in obj.data.uv_layers:
-            lyr.active_render = (lyr.name == UV_LAYER)
-    if missing:
-        print(f"  uv        {missing} faces failed UV copy-back (export may miss them)")
-    return missing
 
 
 # ============================================================== materials / proxy
@@ -653,18 +719,20 @@ def main():
         scene, samples, min_samples, bounces, adaptive, guiding, device=device)
 
 
-    # One joined proxy is unwrapped, packed, baked, then UVs are copied back.
+    # Pack on the originals (pixel shelf + gutters), then bake a joined proxy.
     # Packing against PACK_RESOLUTION so preview and high share a layout.
     t0 = time.time()
     if reuse:
-        # Still need a bake proxy with those UVs.
+        for obj in targets:
+            obj.data.uv_layers.active = obj.data.uv_layers[UV_LAYER]
+            for layer in obj.data.uv_layers:
+                layer.active_render = (layer.name == UV_LAYER)
+        coverage = sum(uv_area(obj) for obj in targets)
+        print(f"  uv        reusing existing {UV_LAYER} (--repack to rebuild)")
         proxy = make_bake_proxy(targets)
         for layer in proxy.data.uv_layers:
             layer.active_render = (layer.name == UV_LAYER)
             layer.active = (layer.name == UV_LAYER)
-        coverage = sum(uv_area(obj) for obj in targets)
-        print(f"  uv        reusing existing {UV_LAYER} on bake proxy "
-              f"(--repack to rebuild)")
         join_time = time.time() - t0
     else:
         proxy, coverage = make_uv_bake_proxy(targets, PACK_RESOLUTION, pack_margin)
@@ -678,6 +746,8 @@ def main():
     print(f"  coverage  islands cover {coverage * 100:.1f}% of the atlas")
     print(f"  density   {area_m2:.0f} m2 over {texels:,.0f} texels -> "
           f"{np.sqrt(density) * 100:.1f} cm/texel")
+    # Gutter check in bake-atlas pixels (scaled margin at this resolution).
+    assert_chart_gutter(targets, resolution, margin)
 
     for obj in targets:
         obj.hide_render = True
@@ -686,8 +756,6 @@ def main():
         t0 = time.time()
         do_bake(proxy, margin)
         bake_time = time.time() - t0
-        if not reuse:
-            copy_lightmap_uvs_from_proxy(proxy, targets)
     finally:
         restore_cycles(scene, previous)
         remove_bake_targets(installed)
@@ -696,9 +764,6 @@ def main():
         bpy.data.objects.remove(proxy, do_unlink=True)
         for obj in targets:
             restore_uv_state(obj, states[obj.name])
-            # Keep Lightmap layer present for export even after restore of active/render.
-            if UV_LAYER in obj.data.uv_layers:
-                pass
 
     data = read_image(atlas)
     rgb = data[:, :, :3]
@@ -729,7 +794,7 @@ def main():
             "path_guiding": guiding,
             "diffuse_bounces": bounces,
             "uv_layer": UV_LAYER,
-            "uv_pack": "joined smart_project (FRACTION margin, scale_to_bounds)",
+            "uv_pack": "smart_project + pixel shelf (2x margin gutters)",
             "coverage": round(coverage, 5),
             "encode": "srgb",
             "encode_scale": scale,

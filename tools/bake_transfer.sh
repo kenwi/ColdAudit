@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Run a v2 lightmap bake on bletchley and pull results into this repo.
+# Run a v2 lightmap bake on a remote host and pull results into this repo.
 #
 # Usage:
-#   tools/bake_transfer.sh --quality preview
-#   tools/bake_transfer.sh --quality medium --device GPU
-#   tools/bake_transfer.sh --quality high --device GPU --repack
+#   tools/bake_transfer.sh kenwi@bletchley --quality preview
+#   tools/bake_transfer.sh kenwi@bletchley --quality medium --device GPU
+#   tools/bake_transfer.sh kenwi@bletchley --quality high --device GPU --repack
 #
 # Syncs bake tools (+ textures if missing remotely), bakes, re-exports the
 # sector GLB, then copies lightmap + GLB (+ blend) back locally.
@@ -14,7 +14,6 @@
 
 set -euo pipefail
 
-REMOTE="${BAKE_REMOTE:-kenwi@bletchley}"
 REMOTE_ROOT="${BAKE_REMOTE_ROOT:-~/Work/ColdAudit}"
 REMOTE_BLEND="${BAKE_REMOTE_BLEND:-~/Work/office-level.blend}"
 LOCAL_BLEND="${BAKE_LOCAL_BLEND:-$HOME/Work/office-level.blend}"
@@ -28,7 +27,7 @@ EXTRA_BAKE_ARGS=()
 
 usage() {
   cat <<'EOF'
-Usage: tools/bake_transfer.sh --quality <tier> [--device CPU|GPU] [options]
+Usage: tools/bake_transfer.sh <user@host> [options]
 
 Options:
   --quality <name>   preview | medium | high | production (default: preview)
@@ -40,12 +39,31 @@ Options:
   -h, --help         Show this help
 
 Environment:
-  BAKE_REMOTE          SSH host (default: kenwi@bletchley)
   BAKE_REMOTE_ROOT     Remote repo root (default: ~/Work/ColdAudit)
   BAKE_REMOTE_BLEND    Remote .blend path (default: ~/Work/office-level.blend)
   BAKE_LOCAL_BLEND     Local .blend path (default: ~/Work/office-level.blend)
 EOF
 }
+
+if [[ $# -lt 1 ]]; then
+  usage >&2
+  exit 2
+fi
+
+case "$1" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  -*)
+    echo "Missing SSH target. Example: $0 kenwi@bletchley --quality preview" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+REMOTE="$1"
+shift
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -175,7 +193,7 @@ rsync -az --progress \
 echo "==> pull blend -> $LOCAL_BLEND"
 rsync -az --progress "$REMOTE:$REMOTE_BLEND_EXPANDED" "$LOCAL_BLEND"
 
-echo "Done. quality=$QUALITY device=$DEVICE denoise=$([[ $NO_DENOISE -eq 0 ]] && echo on || echo off)"
+echo "Done. host=$REMOTE quality=$QUALITY device=$DEVICE denoise=$([[ $NO_DENOISE -eq 0 ]] && echo on || echo off)"
 ls -la \
   "$LOCAL_OFFICE/office_lightmap.png" \
   "$LOCAL_OFFICE/office_lightmap.json" \
