@@ -14,14 +14,18 @@ What changed relative to v1 (and why), based on Blender docs / The Lightmapper
     between charts so EXTEND dilation and bilinear sampling cannot pull black
     neighbour texels. Blender's pack_islands corrupts this joined mesh; do not
     use it.
-  * Sampling: adaptive sampling + path guiding + light tree. Interiors put
-    noise in the shadows; adaptive spends samples there, guiding finds the
-    ceiling panels. Cycles bake uses these render settings.
+  * Sampling: adaptive noise threshold is the quality gate on medium+; ``samples``
+    is only a ceiling. Path guiding + light tree help interiors; adaptive spends
+    the budget on shadows and stops early on easy texels.
   * Bounces: more diffuse bounces on the higher tiers (shadow fill).
   * Denoise: offline OIDN ``RTLightmap`` via ``denoise_lightmap.py`` (Cycles'
     own denoise is a no-op on bakes).
   * Still bake a temporary joined proxy with originals ``hide_render``: per-object
     setup cost and per-object margin dilation are otherwise fatal on this level.
+  * Caustics off (useless for DIFFUSE Direct+Indirect).
+  * Ceiling panel emission zeroed by default so only the area lights light the
+    bake (the level otherwise doubles both). Override with
+    ``--panel-emission-scale 1``.
 
 Usage::
 
@@ -62,10 +66,18 @@ ATLAS_IMAGE = "office_lightmap"
 EXCLUDE_NAMES = {"Ground"}
 BAKE_MARGIN_PX = 4
 PACK_RESOLUTION = 4096
+# Materials whose emission stands in for the ceiling panels. The level lights each
+# room twice - an emissive panel box and an area light the size of that box.
+# Default bake uses area lights alone (--panel-emission-scale 0).
+EMISSIVE_PANEL_PREFIX = "Ceiling_Light"
 
-# preview: cheapest smoke test. Packing is always at PACK_RESOLUTION; bake margin
-# scales down with the atlas (see bake_margin_for) and can be 0 at this size.
-# adaptive=0 means fixed sample count (predictable).
+# preview: cheapest smoke test (fixed spp). Packing is always at PACK_RESOLUTION;
+# bake margin scales down with the atlas (see bake_margin_for) and can be 0 here.
+#
+# medium+: adaptive threshold stops clean texels early; ``samples`` is the ceiling
+# for hard shadows. Interior bakes often hit that ceiling, so raising it multiplies
+# wall time. Keep ceilings modest; tighten ``adaptive`` only when you want cleaner
+# easy areas without spending more on already-maxed shadows.
 QUALITY = {
     "preview":    {"resolution": 256,  "samples": 8,    "min_samples": 8,   "bounces": 1,
                    "adaptive": 0.0,    "guiding": False},
@@ -522,6 +534,27 @@ def make_bake_proxy(targets):
     return proxy
 
 
+def scale_panel_emission(scale):
+    """Dim the emissive ceiling panels for the bake; returns what to put back."""
+    if scale == 1.0:
+        return []
+    restore = []
+    for mat in bpy.data.materials:
+        if not mat.name.startswith(EMISSIVE_PANEL_PREFIX):
+            continue
+        tree = getattr(mat, "node_tree", None)
+        if tree is None:
+            continue
+        for node in tree.nodes:
+            if node.type != "BSDF_PRINCIPLED":
+                continue
+            strength = next((s for s in node.inputs if s.name == "Emission Strength"), None)
+            if strength is not None and not strength.is_linked:
+                restore.append((strength, strength.default_value))
+                strength.default_value *= scale
+    return restore
+
+
 # ============================================================== cycles
 # Prefer CUDA before OPTIX: Maxwell (e.g. GTX 980) has CUDA but not OptiX.
 _GPU_COMPUTE_TYPES = ("CUDA", "OPTIX", "HIP", "ONEAPI", "METAL")
@@ -581,6 +614,8 @@ def configure_cycles(scene, samples, min_samples, bounces, adaptive, guiding,
         "light_tree": scene.cycles.use_light_tree,
         "clamp_indirect": scene.cycles.sample_clamp_indirect,
         "guiding_training": scene.cycles.guiding_training_samples,
+        "caustics_reflective": scene.cycles.caustics_reflective,
+        "caustics_refractive": scene.cycles.caustics_refractive,
     }
     scene.render.engine = "CYCLES"
     device_label = enable_cycles_device(scene, device)
@@ -600,6 +635,9 @@ def configure_cycles(scene, samples, min_samples, bounces, adaptive, guiding,
     # Do not crush indirect energy in shadow regions.
     scene.cycles.sample_clamp_indirect = 0.0
     scene.cycles.use_light_tree = True
+    # DIFFUSE bake never needs caustic paths; leave them off for free samples.
+    scene.cycles.caustics_reflective = False
+    scene.cycles.caustics_refractive = False
     scene.cycles.use_guiding = bool(guiding)
     if guiding:
         scene.cycles.use_surface_guiding = True
@@ -625,6 +663,8 @@ def restore_cycles(scene, previous):
     scene.cycles.use_light_tree = previous["light_tree"]
     scene.cycles.sample_clamp_indirect = previous["clamp_indirect"]
     scene.cycles.guiding_training_samples = previous["guiding_training"]
+    scene.cycles.caustics_reflective = previous["caustics_reflective"]
+    scene.cycles.caustics_refractive = previous["caustics_refractive"]
 
 
 def do_bake(proxy, margin):
@@ -681,6 +721,10 @@ def main():
         preset["resolution"] = int(opt("--resolution"))
     if opt("--samples"):
         preset["samples"] = int(opt("--samples"))
+    if opt("--min-samples"):
+        preset["min_samples"] = int(opt("--min-samples"))
+    if opt("--adaptive"):
+        preset["adaptive"] = float(opt("--adaptive"))
     if opt("--bounces"):
         preset["bounces"] = int(opt("--bounces"))
     if flag("--direct-only"):
@@ -706,11 +750,17 @@ def main():
         resolve_levels_dir(), LEVEL_ID, f"{SECTOR_ID}_lightmap.png")
     encode_scale = float(opt("--encode-scale", "1.0"))
     auto_scale = flag("--auto-scale") or opt("--encode-scale") is None
+    # Default 0: area lights alone. The stills use panels + area lights; both at
+    # once makes the bake noisier without changing the intended look much.
+    panel_scale = float(opt("--panel-emission-scale", "0.0"))
 
+    if adaptive and adaptive > 0.0:
+        sample_note = f"adaptive={adaptive} (quality gate) ceiling={samples} min={min_samples}"
+    else:
+        sample_note = f"fixed={samples} spp (adaptive off)"
     print(f"BAKE_V2 quality={quality} atlas={resolution}x{resolution} "
-          f"samples<={samples} min={min_samples} adaptive={adaptive} "
-          f"bounces={bounces} guiding={guiding} margin={margin}px "
-          f"device={device}")
+          f"{sample_note} bounces={bounces} guiding={guiding} margin={margin}px "
+          f"device={device} panels={panel_scale}")
 
     targets, skipped = targets_to_bake(opt("--only"))
     if not targets:
@@ -730,9 +780,12 @@ def main():
                                 alpha=False, float_buffer=True)
 
     installed = install_bake_targets(materials, atlas)
+    emission_restore = scale_panel_emission(panel_scale)
+    if panel_scale != 1.0:
+        print(f"  panels    emission x{panel_scale} for the bake "
+              f"({len(emission_restore)} sockets)")
     previous = configure_cycles(
         scene, samples, min_samples, bounces, adaptive, guiding, device=device)
-
 
     # Pack on the originals (pixel shelf + gutters), then bake a joined proxy.
     # Packing against PACK_RESOLUTION so preview and high share a layout.
@@ -774,6 +827,8 @@ def main():
     finally:
         restore_cycles(scene, previous)
         remove_bake_targets(installed)
+        for socket, value in emission_restore:
+            socket.default_value = value
         for obj in targets:
             obj.hide_render = False
         bpy.data.objects.remove(proxy, do_unlink=True)
@@ -808,6 +863,8 @@ def main():
             "adaptive_threshold": adaptive,
             "path_guiding": guiding,
             "diffuse_bounces": bounces,
+            "panel_emission_scale": panel_scale,
+            "caustics": False,
             "uv_layer": UV_LAYER,
             "uv_pack": "smart_project + pixel shelf (2x margin gutters)",
             "coverage": round(coverage, 5),

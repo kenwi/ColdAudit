@@ -211,7 +211,6 @@ mkdir -p "$LOCAL_OFFICE"
 rsync -az --progress \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.png" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.json" \
-  "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_raw.npz" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_${QUALITY}.png" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_${QUALITY}.json" \
   "$LOCAL_OFFICE/"
