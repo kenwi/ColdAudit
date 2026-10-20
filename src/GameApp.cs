@@ -148,23 +148,23 @@ public sealed class GameApp
         _features.Add(new InventoryFeature());
         _features.Add(doors);
         _features.Add(cameras);
-        _features.Add(new WorkstationsFeature());
-        _features.Add(new DetectionHeatFeature());
-        _features.Add(new ObjectiveExfilFeature());
-        _features.Add(new SectorVisibilityFeature());
-        _features.Add(new LightingFeature());
+        //_features.Add(new WorkstationsFeature());
+        //_features.Add(new DetectionHeatFeature());
+        //_features.Add(new ObjectiveExfilFeature());
+        //_features.Add(new SectorVisibilityFeature());
+        //_features.Add(new LightingFeature());
         // After LightingFeature: needs this frame's light positions to build occlusion volumes.
-        _features.Add(new LightVisibilityFeature());
+        //_features.Add(new LightVisibilityFeature());
         // After the volumes: shadow cubes cull casters against each light's sector reach.
         _features.Add(shadows);
         _features.Add(new WorldRenderFeature());
         _features.Add(levelModels);
         _features.Add(new PhysicsDebugDrawFeature(physics));
         _features.Add(levelProps);
-        _features.Add(new HudFeature());
+        //_features.Add(new HudFeature());
         // After HudFeature: draws into the UI framebuffer that Hud already began.
         _features.Add(new InventoryHudFeature());
         _features.Add(new DebugOverlayFeature(physics, shadows));
-        _features.Add(new UiPresentFeature());
+        //_features.Add(new UiPresentFeature());
     }
 }
