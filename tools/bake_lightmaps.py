@@ -63,10 +63,15 @@ Usage::
     blender -b ~/Work/office-level.blend --python tools/bake_lightmaps.py -- --quality low
     blender -b ~/Work/office-level.blend --python tools/export_level_glb.py
 
-Options (after ``--``): --quality worst|low|medium|high, --resolution PX,
---samples N, --bounces N, --direct-only, --only SUBSTR, --out PATH,
---encode-scale S, --repack, --margin PX, --panel-emission-scale S, --no-save,
---no-denoise.
+Options (after ``--``): --quality worst|low|medium|high|super|experimental,
+--resolution PX, --samples N, --bounces N, --direct-only, --only SUBSTR,
+--out PATH, --encode-scale S, --repack, --margin PX, --panel-emission-scale S,
+--no-save, --no-denoise.
+
+``--margin`` is the pack-time pad at PACK_RESOLUTION (4096). Cheaper tiers bake a
+smaller image of the same UV layout and shrink the bake dilation so it still fits
+inside the gutter. A proportional pack (median gap << 1 px) is rejected: that is
+what painted dark neighbouring faces into lit islands as in-game dark patches.
 
 The atlas is denoised with OIDN (tools/denoise_lightmap.py) after saving; without it the
 per-texel bake noise is magnified into visible grain on walls and ceilings, because those
@@ -107,22 +112,50 @@ ATLAS_IMAGE = "office_lightmap"
 # and sample count.
 MICROS_PER_TEXEL_SAMPLE = 0.35
 
-# The bake's own dilation, in atlas pixels. The packer already leaves a gap
-# between islands; this grows each island's edge colour outwards so bilinear
-# sampling at a UV seam cannot pick up the cleared background.
+# The bake's own dilation, in atlas pixels at PACK_RESOLUTION. The packer leaves
+# a matching gutter (2 x this) between islands so EXTEND cannot paint a dark
+# neighbour into a lit face; the margin then grows each island's edge colour
+# outwards so bilinear sampling at a UV seam cannot pick up the cleared
+# background.
 BAKE_MARGIN_PX = 4
+
+# UVs are packed once for this atlas size. Cheaper tiers bake a smaller image
+# of the same layout: the gutter shrinks in pixels with the image, and the bake
+# margin is scaled down to match (see bake_margin_for). 23k charts with a 4 px
+# pad do not fit in 1024^2 even as points, so the pack cannot follow --resolution.
+PACK_RESOLUTION = 4096
 
 # Interactive tiers, in atlas pixels and samples. `worst` is the cheapest bake that
 # still says something true - 512^2 at 8 samples is about a second of sampling, so
 # a whole run is dominated by Blender's fixed costs and works as a smoke test of the
 # UVs, the materials and the export. The floor, if even that is too slow, is
 # --resolution 256 --samples 4 --direct-only.
+#
+# Seam-free packing needs --repack against PACK_RESOLUTION. Reusing an older
+# proportional pack fails the gutter check below.
 QUALITY = {
-    "worst":  {"resolution": 512,  "samples": 8,  "bounces": 1},
-    "low":    {"resolution": 1024, "samples": 16, "bounces": 1},
-    "medium": {"resolution": 2048, "samples": 32, "bounces": 2},
-    "high":   {"resolution": 4096, "samples": 64, "bounces": 2},
+    "worst":        {"resolution": 512,  "samples": 8,   "bounces": 1},
+    "low":          {"resolution": 1024, "samples": 16,  "bounces": 1},
+    "medium":       {"resolution": 2048, "samples": 32,  "bounces": 2},
+    "high":         {"resolution": 4096, "samples": 64,  "bounces": 2},
+    "super":        {"resolution": 4096, "samples": 128, "bounces": 2},
+    # Alias of low: a fast packing/seam check, not a sample-count playground.
+    "experimental": {"resolution": 1024, "samples": 16,  "bounces": 1},
 }
+
+
+def bake_margin_for(bake_resolution, pack_resolution=PACK_RESOLUTION,
+                    pack_margin=BAKE_MARGIN_PX):
+    """Bake-margin in pixels of the bake atlas, matched to the packed gutter.
+
+    Packing puts ``2 * pack_margin`` blank pixels between charts at
+    ``pack_resolution``. At a smaller bake those UV gaps cover fewer texels, so
+    the dilation has to shrink or it crosses into the next chart again.
+    """
+    if bake_resolution <= 0 or pack_resolution <= 0:
+        return 0
+    gutter_at_bake = 2 * pack_margin * bake_resolution / pack_resolution
+    return max(0, min(pack_margin, int(gutter_at_bake // 2)))
 
 # One bounce vs two moves the atlas by ~6% in brightness (measured), which is not
 # worth its cost, so only `medium` and above pay for the second.
@@ -268,7 +301,118 @@ def face_key(me, poly):
     return tuple(pts[k:] + pts[:k])
 
 
-def pack_lightmap_uvs(targets):
+def collect_lightmap_charts(targets):
+    """Build chart records from the active Lightmap layer: bbox, object, loops, uvs."""
+    charts = []
+    for obj in targets:
+        me = obj.data
+        layer = me.uv_layers[UV_LAYER]
+        parent = list(range(len(me.polygons)))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        buckets = {}
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                v = me.vertices[me.loops[li].vertex_index].co
+                uv = layer.data[li].uv
+                key = (round(v.x, 4), round(v.y, 4), round(v.z, 4),
+                       round(uv[0], 5), round(uv[1], 5))
+                buckets.setdefault(key, []).append(poly.index)
+        for ids in buckets.values():
+            r = find(ids[0])
+            for i in ids[1:]:
+                ri = find(i)
+                if ri != r:
+                    parent[ri] = r
+
+        groups = {}
+        for poly in me.polygons:
+            groups.setdefault(find(poly.index), []).extend(poly.loop_indices)
+        for lis in groups.values():
+            uv = np.array([layer.data[li].uv[:] for li in lis], dtype=np.float64)
+            w = float(uv[:, 0].max() - uv[:, 0].min())
+            h = float(uv[:, 1].max() - uv[:, 1].min())
+            if w <= 0.0 or h <= 0.0:
+                continue
+            charts.append([float(uv[:, 0].min()), float(uv[:, 1].min()),
+                           float(uv[:, 0].max()), float(uv[:, 1].max()),
+                           obj.name, lis, uv])
+    return charts
+
+
+def nearest_chart_gaps_px(charts, resolution):
+    """Nearest-neighbour AABB gap between charts, in atlas pixels."""
+    if len(charts) < 2:
+        return np.array([], dtype=np.float64)
+    boxes = np.array([
+        [c[0] * resolution, c[1] * resolution, c[2] * resolution, c[3] * resolution]
+        for c in charts
+    ], dtype=np.float64)
+    cell = 32.0
+    centers = ((boxes[:, 0] + boxes[:, 2]) * 0.5,
+               (boxes[:, 1] + boxes[:, 3]) * 0.5)
+    grid = {}
+    for i, (cx, cy) in enumerate(zip(centers[0], centers[1])):
+        grid.setdefault((int(cx // cell), int(cy // cell)), []).append(i)
+    gaps = np.empty(len(boxes), dtype=np.float64)
+    gaps.fill(1e9)
+    for i, (x0, y0, x1, y1) in enumerate(boxes):
+        cx, cy = int(centers[0][i] // cell), int(centers[1][i] // cell)
+        best = 1e9
+        for ox in range(-2, 3):
+            for oy in range(-2, 3):
+                for j in grid.get((cx + ox, cy + oy), ()):
+                    if j == i:
+                        continue
+                    a, b, c, d = boxes[j]
+                    dx = max(0.0, max(x0 - c, a - x1))
+                    dy = max(0.0, max(y0 - d, b - y1))
+                    if dx == 0.0 and dy == 0.0:
+                        sep = 0.0
+                    elif dx == 0.0:
+                        sep = dy
+                    elif dy == 0.0:
+                        sep = dx
+                    else:
+                        sep = math.hypot(dx, dy)
+                    if sep < best:
+                        best = sep
+        gaps[i] = best
+    return gaps[gaps < 1e8]
+
+
+def assert_chart_gutter(targets, resolution, margin_px):
+    """Refuse to bake when chart gutters are narrower than the bake margin.
+
+    A proportional pack leaves a median gap of ~0.4 px at 4096: the 4 px EXTEND
+    dilation then paints dark neighbouring faces into lit islands, which is what
+    the in-game dark patches are. The pixel packer aims for a gutter of
+    2 x margin so the two dilations meet in the middle.
+    """
+    charts = collect_lightmap_charts(targets)
+    gaps = nearest_chart_gaps_px(charts, resolution)
+    if gaps.size == 0:
+        return
+    median = float(np.median(gaps))
+    p10 = float(np.percentile(gaps, 10))
+    frac_lt = float((gaps < margin_px).mean())
+    print(f"  gutter    median {median:.2f} px  p10 {p10:.2f} px  "
+          f"{frac_lt * 100:.1f}% of charts closer than the {margin_px} px margin")
+    if median + 1e-6 < margin_px:
+        raise RuntimeError(
+            f"Lightmap chart gutter is too tight for a {margin_px} px bake margin "
+            f"(median nearest-neighbour gap {median:.2f} px at {resolution}^2). "
+            f"Re-run with --repack so charts are packed in pixel space for this "
+            f"resolution."
+        )
+
+
+def pack_lightmap_uvs(targets, resolution, margin_px):
     """Give every target a Lightmap layer of continuous charts, packed into 0-1.
 
     ``lightmap_pack`` gives every face its own island. That is fatal here: the
@@ -285,10 +429,11 @@ def pack_lightmap_uvs(targets):
     by face position.
 
     ``pack_islands`` does not scale islands in this Blender, so the charts are
-    shelf packed here from their bounding boxes, area-normalised first, with a
-    proportional gap like lightmap_pack's margin. The layout does not depend on
-    the atlas resolution: it is packed once, and ``--repack`` only when it has to
-    change.
+    shelf packed from their bounding boxes in **atlas pixels** of ``resolution``.
+    Every chart gets a pad of ``margin_px`` on each side so neighbouring islands
+    are ``2 x margin`` apart and the bake's EXTEND dilation cannot cross into a
+    differently lit face. That makes the layout resolution-dependent -
+    ``--repack`` whenever the atlas size changes.
     """
     t0 = time.time()
     for obj in targets:
@@ -345,71 +490,67 @@ def pack_lightmap_uvs(targets):
             for li, uv in zip(poly.loop_indices, uvs):
                 layer.data[li].uv = uv
 
-    # --- charts: faces sharing a corner with the same UV ----------------------
-    charts = []
-    for obj in targets:
-        me = obj.data
-        layer = me.uv_layers[UV_LAYER]
-        parent = list(range(len(me.polygons)))
+    charts = collect_lightmap_charts(targets)
+    if not charts:
+        raise RuntimeError("No lightmap charts to pack.")
 
-        def find(x):
-            while parent[x] != x:
-                parent[x] = parent[parent[x]]
-                x = parent[x]
-            return x
-
-        buckets = {}
-        for poly in me.polygons:
-            for li in poly.loop_indices:
-                v = me.vertices[me.loops[li].vertex_index].co
-                uv = layer.data[li].uv
-                key = (round(v.x, 4), round(v.y, 4), round(v.z, 4),
-                       round(uv[0], 5), round(uv[1], 5))
-                buckets.setdefault(key, []).append(poly.index)
-        for ids in buckets.values():
-            r = find(ids[0])
-            for i in ids[1:]:
-                ri = find(i)
-                if ri != r:
-                    parent[ri] = r
-
-        groups = {}
-        for poly in me.polygons:
-            groups.setdefault(find(poly.index), []).extend(poly.loop_indices)
-        for lis in groups.values():
-            uv = np.array([layer.data[li].uv[:] for li in lis], dtype=np.float64)
-            charts.append([uv[:, 0].min(), uv[:, 1].min(),
-                           uv[:, 0].max(), uv[:, 1].max(), obj.name, lis, uv])
-
-    # --- shelf pack, area normalised -----------------------------------------
-    # The gap is proportional, like lightmap_pack's margin: 23k charts in a
-    # 4096 atlas average ~20 px, so a uniform 8 px gap would be a quarter of
-    # every chart and at 512 it would not fit at all.
+    # --- shelf pack in atlas pixels ------------------------------------------
+    # Pad every chart by the bake margin on each side. Between two charts the
+    # gutter is therefore 2 x margin, which is exactly what EXTEND needs so the
+    # two dilations meet rather than cross. Scale is binary-searched: the largest
+    # chart-to-pixel factor that still shelves into the atlas.
+    pad = float(margin_px)
     area = sum((c[2] - c[0]) * (c[3] - c[1]) for c in charts)
-    k = (0.60 / area) ** 0.5  # aim at 60% chart area, then fit the shelves
     order = sorted(range(len(charts)), key=lambda i: -(charts[i][3] - charts[i][1]))
-    x = y = high = wide = 0.0
-    place = {}
-    for i in order:
-        u0, v0, u1, v1 = charts[i][:4]
-        w, h = (u1 - u0) * k, (v1 - v0) * k
-        g = 0.03 * max(w, h)
-        if x + w + 2 * g > 1.0 and x > 0.0:
-            y += high
-            x, high = 0.0, 0.0
-        place[i] = (x + g - u0 * k, y + g - v0 * k)
-        x += w + 2 * g
-        wide = max(wide, x)
-        high = max(high, h + 2 * g)
-    fit = min(1.0 / max(wide, 1e-9), 1.0 / max(y + high, 1e-9))
-    scale = k * fit
-    used = area * scale * scale
+
+    def shelf(scale):
+        x = y = high = wide = 0.0
+        place = {}
+        for i in order:
+            u0, v0, u1, v1 = charts[i][:4]
+            w = (u1 - u0) * scale
+            h = (v1 - v0) * scale
+            if x + w + 2.0 * pad > resolution and x > 0.0:
+                y += high
+                x, high = 0.0, 0.0
+            place[i] = (x + pad - u0 * scale, y + pad - v0 * scale)
+            x += w + 2.0 * pad
+            wide = max(wide, x)
+            high = max(high, h + 2.0 * pad)
+        return place, wide, y + high
+
+    # Without padding, area * s^2 = resolution^2 is an upper bound on scale.
+    hi = resolution / max(area ** 0.5, 1e-12)
+    lo = hi * 1e-6
+    best_place, best_scale = None, None
+    for _ in range(48):
+        mid = 0.5 * (lo + hi)
+        place, wide, tall = shelf(mid)
+        if wide <= resolution + 1e-6 and tall <= resolution + 1e-6:
+            lo = mid
+            best_place, best_scale = place, mid
+        else:
+            hi = mid
+    if best_place is None:
+        # Pad alone: each chart is at least (2*pad)^2 even at zero size.
+        min_pad = len(charts) * (2.0 * pad) ** 2
+        raise RuntimeError(
+            f"Cannot pack {len(charts):,} charts into {resolution}^2 with a "
+            f"{margin_px} px margin "
+            f"(pad floor {min_pad / resolution**2 * 100:.0f}% of the atlas). "
+            f"Raise PACK_RESOLUTION or lower the margin."
+        )
+
+    used = area * (best_scale / resolution) ** 2
     print(f"  uv        unwrapped {len(targets)} meshes into {len(charts):,} charts, "
-          f"{used*100:.0f}% of the atlas in {time.time()-t0:.1f} s")
+          f"{used * 100:.0f}% of the atlas "
+          f"(pixel pad {margin_px} px/side @ {resolution}) "
+          f"in {time.time() - t0:.1f} s")
     if missing:
         print(f"  uv        {missing} zero-area faces had no source face")
 
-    # --- write back -----------------------------------------------------------
+    # --- write back as UV 0-1 -------------------------------------------------
+    inv = 1.0 / resolution
     by_obj = {}
     for i, c in enumerate(charts):
         by_obj.setdefault(c[4], []).append(i)
@@ -417,10 +558,11 @@ def pack_lightmap_uvs(targets):
         me = obj.data
         layer = me.uv_layers[UV_LAYER]
         for i in by_obj.get(obj.name, []):
-            u0, v0, u1, v1, _, lis, uv = charts[i]
-            ox, oy = place[i]
-            for li, u, v in zip(lis, (uv[:, 0] * k + ox) * fit,
-                                (uv[:, 1] * k + oy) * fit):
+            _, _, _, _, _, lis, uv = charts[i]
+            ox, oy = best_place[i]
+            for li, u, v in zip(lis,
+                                (uv[:, 0] * best_scale + ox) * inv,
+                                (uv[:, 1] * best_scale + oy) * inv):
                 layer.data[li].uv = (u, v)
 
     # A bake reads the render map, not the active one, and the unwrap leaves the
@@ -575,8 +717,12 @@ def do_bake(proxy, margin):
     bpy.ops.object.select_all(action="DESELECT")
     proxy.select_set(True)
     bpy.context.view_layer.objects.active = proxy
+    # EXTEND dilates each island's own edge colour. ADJACENT_FACES would pull in
+    # the next chart, and at a 66° smart_project seam that neighbour is a
+    # differently lit face - exactly the dark fringe we are trying to avoid.
     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"},
-                        use_clear=True, margin=margin, use_selected_to_active=False)
+                        use_clear=True, margin=margin, margin_type="EXTEND",
+                        use_selected_to_active=False)
 
 
 def read_image(image):
@@ -636,7 +782,10 @@ def main():
     resolution = preset["resolution"]
     samples = preset["samples"]
     bounces = preset["bounces"]
-    margin = int(opt("--margin", str(BAKE_MARGIN_PX)))
+    # --margin is the pack-time pad at PACK_RESOLUTION. The bake dilation is
+    # scaled down when the atlas is smaller so it still fits inside the gutter.
+    pack_margin = int(opt("--margin", str(BAKE_MARGIN_PX)))
+    margin = bake_margin_for(resolution, PACK_RESOLUTION, pack_margin)
     out_path = opt("--out") or os.path.join(
         resolve_levels_dir(), LEVEL_ID, f"{SECTOR_ID}_lightmap.png")
     encode_scale = float(opt("--encode-scale", "1.0"))
@@ -646,7 +795,8 @@ def main():
     panel_scale = float(opt("--panel-emission-scale", "1.0"))
 
     print(f"BAKE quality={quality} atlas={resolution}x{resolution} "
-          f"samples={samples} bounces={bounces} margin={margin}px")
+          f"samples={samples} bounces={bounces} "
+          f"margin={margin}px (pack {pack_margin}px @ {PACK_RESOLUTION})")
 
     targets, skipped = targets_to_bake(opt("--only"))
     if not targets:
@@ -662,8 +812,9 @@ def main():
     # Repacking is most of a `worst` run (the weld + smart_project pass is ~20 s)
     # and it invalidates every atlas baked against the previous layout, so it only
     # happens when the layout has to change: on a fresh pack, or after editing the
-    # models. Otherwise the existing Lightmap layer is reused, which also makes a
-    # re-bake comparable with the one before it.
+    # models. The pack is always against PACK_RESOLUTION so a low bake can reuse
+    # the same UVs as a later high bake. Otherwise the existing Lightmap layer is
+    # reused.
     t0 = time.time()
     states = {obj.name: uv_state(obj) for obj in targets}
     packed = all(UV_LAYER in obj.data.uv_layers for obj in targets)
@@ -677,7 +828,7 @@ def main():
                 layer.active_render = (layer.name == UV_LAYER)
         print(f"  uv        reusing the existing {UV_LAYER} layer (--repack to rebuild)")
     else:
-        pack_lightmap_uvs(targets)
+        pack_lightmap_uvs(targets, PACK_RESOLUTION, pack_margin)
         pack_time = time.time() - t0
     coverage = sum(uv_area(obj) for obj in targets)
     area_m2 = sum(surface_area(obj) for obj in targets)
@@ -689,6 +840,9 @@ def main():
     print(f"  coverage  islands cover {coverage * 100:.1f}% of the atlas")
     print(f"  density   {area_m2:.0f} m2 of surface over {texels:,.0f} texels -> "
           f"{density:.3f} m2/texel ({np.sqrt(density) * 100:.1f} cm across)")
+    # Gutter check is in bake-atlas pixels. A fresh pack for PACK_RESOLUTION has
+    # 2 x pack_margin px of gap there; at this bake size that is 2 x margin.
+    assert_chart_gutter(targets, resolution, margin)
 
     # --- what the other tiers would cost -------------------------------------
     # Each tier brings its own resolution, so the texel count is per tier; using
@@ -775,15 +929,25 @@ def main():
             "encode_scale": scale,
             "value": "irradiance/pi, linear, albedo excluded",
             "bake_margin_px": margin,
+            "bake_margin_type": "EXTEND",
+            "pack_resolution": PACK_RESOLUTION,
+            "pack_margin_px": pack_margin,
+            "pack_gutter_px": 2 * pack_margin,
         }, fh, indent=2)
     print(f"  atlas     {out_path} ({os.path.getsize(out_path) / 1024:.0f} KB, "
           f"sRGB-encoded, encode scale {scale:.4g}"
           + (", auto" if auto_scale else "") + ")")
     print(f"  meta      {meta_path}")
 
-    # OIDN pass. The bake is only 32-64 spp and the noise is uncorrelated per texel;
-    # magnified over a wall it reads as mottling. Denoising preserves the mean (checked
-    # to 0.1%) and leaves the layout untouched, so nothing else needs re-exporting.
+    # Keep the linear bake so denoise can be re-tuned without a 10-minute re-sample.
+    # Row order matches the PNG (top-down), unlike OIDN's bottom-up PFM convention.
+    raw_path = os.path.splitext(out_path)[0] + "_raw.npz"
+    np.savez_compressed(raw_path, rgb=rgb.astype(np.float32), encode_scale=np.float32(scale))
+    print(f"  raw       {raw_path}")
+
+    # OIDN pass (RTLightmap + asinh). Shadows are 50-100x dimmer than the floors;
+    # without compression the beauty-pass filter leaves them mottled. Denoising
+    # leaves the UV layout untouched, so nothing else needs re-exporting.
     if not flag("--no-denoise"):
         denoiser = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "denoise_lightmap.py")

@@ -6,8 +6,8 @@
 #   tools/bake_transfer.sh kenwi@bletchley --quality medium --device GPU
 #   tools/bake_transfer.sh kenwi@bletchley --quality high --device GPU --repack
 #
-# Syncs bake tools (+ textures if missing remotely), bakes, re-exports the
-# sector GLB, then copies lightmap + GLB (+ blend) back locally.
+# Syncs bake tools (+ textures if missing remotely), bakes, then copies the
+# lightmap atlas (+ blend) back locally.
 #
 # With --denoise, OIDN runs on the remote during the bake (oidnDenoise must be
 # on the remote PATH). The pulled atlas is already denoised.
@@ -23,7 +23,6 @@ DEVICE="CPU"
 REPACK=0
 NO_DENOISE=1
 SYNC_TEXTURES=0
-EXTRA_BAKE_ARGS=()
 
 usage() {
   cat <<'EOF'
@@ -43,6 +42,14 @@ Environment:
   BAKE_REMOTE_BLEND    Remote .blend path (default: ~/Work/office-level.blend)
   BAKE_LOCAL_BLEND     Local .blend path (default: ~/Work/office-level.blend)
 EOF
+}
+
+denoise_label() {
+  if [[ "$NO_DENOISE" -eq 0 ]]; then
+    echo on
+  else
+    echo off
+  fi
 }
 
 if [[ $# -lt 1 ]]; then
@@ -123,12 +130,12 @@ esac
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOCAL_OFFICE="$ROOT/content/levels/office"
 
-EXTRA_BAKE_ARGS+=(--quality "$QUALITY" --device "$DEVICE")
+BAKE_ARGS=(--quality "$QUALITY" --device "$DEVICE")
 if [[ "$REPACK" -eq 1 ]]; then
-  EXTRA_BAKE_ARGS+=(--repack)
+  BAKE_ARGS+=(--repack)
 fi
 if [[ "$NO_DENOISE" -eq 1 ]]; then
-  EXTRA_BAKE_ARGS+=(--no-denoise)
+  BAKE_ARGS+=(--no-denoise)
 fi
 
 # Expand remote ~ for rsync destinations that need it.
@@ -140,12 +147,17 @@ ssh "$REMOTE" "mkdir -p $REMOTE_ROOT/tools $REMOTE_ROOT/content/levels/office $R
 rsync -az --progress \
   "$ROOT/tools/bake_lightmaps_v2.py" \
   "$ROOT/tools/denoise_lightmap.py" \
-  "$ROOT/tools/export_level_glb.py" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/tools/"
 
 if [[ -f "$LOCAL_BLEND" ]]; then
-  echo "==> sync blend -> $REMOTE:$REMOTE_BLEND_EXPANDED"
-  rsync -az --progress "$LOCAL_BLEND" "$REMOTE:$REMOTE_BLEND_EXPANDED"
+  # Checksum compare: skip the upload when remote already matches local.
+  if rsync -azc --dry-run --out-format='%n' \
+      "$LOCAL_BLEND" "$REMOTE:$REMOTE_BLEND_EXPANDED" | grep -q .; then
+    echo "==> sync blend (changed) -> $REMOTE:$REMOTE_BLEND_EXPANDED"
+    rsync -azc --progress "$LOCAL_BLEND" "$REMOTE:$REMOTE_BLEND_EXPANDED"
+  else
+    echo "==> blend unchanged, skip upload"
+  fi
 fi
 
 need_textures=0
@@ -159,42 +171,44 @@ if [[ "$need_textures" -eq 1 ]]; then
   rsync -az --progress "$ROOT/content/textures/" "$REMOTE:$REMOTE_ROOT_EXPANDED/content/textures/"
 fi
 
-# Build a remote argv string that survives SSH.
-bake_args_quoted=$(printf '%q ' "${EXTRA_BAKE_ARGS[@]}")
-
-echo "==> bake on $REMOTE (quality=$QUALITY device=$DEVICE denoise=$([[ $NO_DENOISE -eq 0 ]] && echo on || echo off))"
+echo "==> bake on $REMOTE (quality=$QUALITY device=$DEVICE denoise=$(denoise_label))"
+# Use already-expanded absolute paths (printf %q would escape '~' and break cd).
+# Bake args are %q'd so the remote shell cannot split them. Blender gets
+# </dev/null so it cannot steal the rest of the bash -s script on stdin.
+remote_root_q=$(printf '%q' "$REMOTE_ROOT_EXPANDED")
+remote_blend_q=$(printf '%q' "$REMOTE_BLEND_EXPANDED")
+bake_args_q=$(printf '%q ' "${BAKE_ARGS[@]}")
 ssh "$REMOTE" "bash -s" <<EOF
 set -euo pipefail
-cd $REMOTE_ROOT
+cd ${remote_root_q}
 BLENDER=\$(ls -1d /opt/blender*/blender 2>/dev/null | sort | tail -n1)
 if [[ -z "\$BLENDER" || ! -x "\$BLENDER" ]]; then
   echo "No blender binary under /opt/blender*/blender" >&2
   exit 1
 fi
-if [[ "$NO_DENOISE" -eq 0 ]] && ! command -v oidnDenoise >/dev/null 2>&1; then
+if [[ ${NO_DENOISE} -eq 0 ]] && ! command -v oidnDenoise >/dev/null 2>&1; then
   echo "oidnDenoise not on remote PATH; install OIDN or pass --no-denoise" >&2
   exit 1
 fi
 echo "Using \$BLENDER"
-/usr/bin/time -f "WALL_SEC=%e" "\$BLENDER" -b $REMOTE_BLEND \\
-  -P tools/bake_lightmaps_v2.py -- $bake_args_quoted
-"\$BLENDER" -b $REMOTE_BLEND -P tools/export_level_glb.py
+# --log-level error hides Cycles HIPEW/CUEW "library missing" warnings on
+# machines that only have CUDA (or only HIP), which are harmless.
+/usr/bin/time -f "WALL_SEC=%e" "\$BLENDER" -b --log-level error ${remote_blend_q} \\
+  -P tools/bake_lightmaps_v2.py -- ${bake_args_q} </dev/null
 EOF
 
-echo "==> pull lightmap + glb -> $LOCAL_OFFICE/"
+echo "==> pull lightmap -> $LOCAL_OFFICE/"
 mkdir -p "$LOCAL_OFFICE"
 rsync -az --progress \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.png" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap.json" \
   "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office_lightmap_raw.npz" \
-  "$REMOTE:$REMOTE_ROOT_EXPANDED/content/levels/office/office.glb" \
   "$LOCAL_OFFICE/"
 
 echo "==> pull blend -> $LOCAL_BLEND"
 rsync -az --progress "$REMOTE:$REMOTE_BLEND_EXPANDED" "$LOCAL_BLEND"
 
-echo "Done. host=$REMOTE quality=$QUALITY device=$DEVICE denoise=$([[ $NO_DENOISE -eq 0 ]] && echo on || echo off)"
+echo "Done. host=$REMOTE quality=$QUALITY device=$DEVICE denoise=$(denoise_label)"
 ls -la \
   "$LOCAL_OFFICE/office_lightmap.png" \
-  "$LOCAL_OFFICE/office_lightmap.json" \
-  "$LOCAL_OFFICE/office.glb"
+  "$LOCAL_OFFICE/office_lightmap.json"

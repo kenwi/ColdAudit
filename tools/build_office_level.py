@@ -22,6 +22,10 @@ inside a window or doorway.
 import bpy, bmesh, math, os, re
 from mathutils import Vector
 
+# glTF import uses bpy.app.debug_value for its log level (0=INFO, 1=WARNING,
+# 2=ERROR). Default 0 prints two INFO lines per imported asset.
+bpy.app.debug_value = 1
+
 
 def repo_root():
     """Repo root, whether this runs from tools/ or from an interactive session."""
@@ -630,13 +634,35 @@ box("Reception_Sign_Panel", (-13.7, -5.75, 2.1), (0.15, 3.2, 0.9), M['accent'], 
 # y -4.072; the chair's casters reach y -3.96 and its seat front -3.83, so it clears the
 # counter by 0.11 m with the seat tucking under it.
 chair("Reception_Chair", -4.0, -3.55)
-# waiting area
-box("Waiting_Sofa_Base", (-11.5, -8.6, 0.28), (2.2, 0.85, 0.35), M['leather'], C_FURN)
-box("Waiting_Sofa_Back", (-11.5, -9.0, 0.62), (2.2, 0.2, 0.75), M['leather'], C_FURN)
+# Waiting L in the SW corner of reception: 3-seater on the south wall facing the room,
+# 2-seater on the west wall facing east into the crook, coffee table centred on the
+# 3-seater with legroom. Manifest sizes already include the 1.2× scale-up
+# (sofa_3 2.52 x 1.02, sofa_2 1.872 x 1.02, table 1.32 x 0.66).
+# Front = local -Y; after yaw θ that direction is (sin θ, -cos θ), so π/2 faces +X.
+_SOFA_HALF_D = 0.51
+_SOFA3_HALF_W = 1.26
+_SOFA2_HALF_W = 0.936
+_TABLE_HALF_D = 0.33
+_WAIT_PAD = 0.12
+_TABLE_CLEAR = 0.85
+_SOFA3_X = -12.6
+_SOFA3_Y = -D2 + EXT / 2 + _WAIT_PAD + _SOFA_HALF_D
+_SOFA2_X = -W2 + EXT / 2 + _WAIT_PAD + _SOFA_HALF_D
+# Table sits in front of the 3-seater; slide the 2-seater along the west wall so its
+# centre line matches the table (same world Y).
+_TABLE_Y = _SOFA3_Y + _SOFA_HALF_D + _TABLE_CLEAR + _TABLE_HALF_D
+_SOFA2_Y = _TABLE_Y
+import_model("sofa_3.glb", "Waiting_Sofa_3",
+             (_SOFA3_X, _SOFA3_Y, 0.0), rot_z=math.pi)
+import_model("sofa_2.glb", "Waiting_Sofa_2",
+             (_SOFA2_X, _SOFA2_Y, 0.0), rot_z=math.pi / 2)
+import_model("coffee_table.glb", "Waiting_CoffeeTable",
+             (_SOFA3_X, _TABLE_Y, 0.0))
 # West of the entrance doorway (Ext_South_GF opens x -3.0 .. -0.075), not in it: the
-# plant used to stand at x -2.2 and blocked the way out.
+# plant used to stand at x -2.2 and blocked the way out. The second plant sits to the
+# left (west) of the 3-seater on the south wall.
 plant("Reception_Plant", -4.3, -9.3, 0.0)
-plant("Reception_Plant2", -13.2, -9.0, 0.0)
+plant("Reception_Plant2", _SOFA3_X - _SOFA3_HALF_W - 0.55, _SOFA3_Y, 0.0)
 
 # ============================================================== GROUND: workspace
 # Standing desks with an assortment of computer kits on top. The kits are ordered so no
