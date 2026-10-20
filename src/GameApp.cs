@@ -9,6 +9,7 @@ using ColdAudit.Features.Inventory;
 using ColdAudit.Features.LevelLoad;
 using ColdAudit.Features.LevelModels;
 using ColdAudit.Features.LevelProps;
+using ColdAudit.Features.LightMaps;
 using ColdAudit.Features.Lighting;
 using ColdAudit.Features.LightVisibility;
 using ColdAudit.Features.ObjectiveExfil;
@@ -134,6 +135,10 @@ public sealed class GameApp
         var shadows = new ShadowMapFeature([levelModels, levelProps, doors, cameras]);
 
         _features.Add(new LevelLoadFeature());
+        // After LevelLoad (needs the level id) and before LevelModels, which assigns the
+        // lightmap shader as it loads the sector. Unloaded last-to-first, so the sector
+        // detaches its materials before this frees the shader.
+        _features.Add(new LightMapFeature());
         _features.Add(physics);
         _features.Add(new FullscreenFeature());
         _features.Add(new PlayerControllerFeature(physics));

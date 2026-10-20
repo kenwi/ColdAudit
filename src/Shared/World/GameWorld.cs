@@ -81,6 +81,12 @@ public sealed class GameWorld
     /// </summary>
     public BasicLighting? Lighting { get; set; }
 
+    /// <summary>
+    /// Baked static lighting for the level, used by the sector drawers when present.
+    /// Loaded by <c>LightMapFeature</c>; null leaves the realtime path in charge.
+    /// </summary>
+    public LightMap? LightMap { get; set; }
+
     /// <summary>Shared player camera and per-frame draw flags.</summary>
     public DrawContext Draw { get; } = new();
 

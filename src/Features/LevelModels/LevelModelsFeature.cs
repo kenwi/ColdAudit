@@ -58,7 +58,18 @@ public sealed class LevelModelsFeature : FeatureBase, IShadowCaster
 
             var handle = new ModelHandle();
             handle.Load(sector.ModelPath);
-            world.Lighting?.ApplyToModel(handle);
+            // The sector is the geometry the atlas was baked for (it carries TEXCOORD_1),
+            // so with a lightmap present it replaces the realtime lighting entirely.
+            // Portals below keep the old path: they have no atlas UVs.
+            if (world.LightMap is { IsLoaded: true } lightMap)
+            {
+                lightMap.ApplyToModel(handle);
+            }
+            else
+            {
+                world.Lighting?.ApplyToModel(handle);
+            }
+
             _handles[sector.Id] = handle;
         }
 
@@ -84,6 +95,10 @@ public sealed class LevelModelsFeature : FeatureBase, IShadowCaster
         }
 
         Raylib.BeginMode3D(world.Draw.Camera);
+
+        // raylib's DrawMesh leaves the active unit where the last material put it; this
+        // binds the atlas to its own unit once per pass, before any sector is drawn.
+        world.LightMap?.BindTexture();
 
         var sectors = world.ActiveLevel.Sectors;
         for (var i = 0; i < sectors.Count; i++)
@@ -184,7 +199,6 @@ public sealed class LevelModelsFeature : FeatureBase, IShadowCaster
         _sectorIndexById.Clear();
         UnloadPlaceholderSurfaces();
     }
-
     private void LoadPlaceholderSurfaces(GameWorld world)
     {
         UnloadPlaceholderSurfaces();

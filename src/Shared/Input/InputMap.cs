@@ -14,5 +14,6 @@ public static class InputMap
     public const KeyboardKey LightingToggle = KeyboardKey.F4;
     public const KeyboardKey LightVolumeToggle = KeyboardKey.F5;
     public const KeyboardKey ShadowsToggle = KeyboardKey.F6;
+    public const KeyboardKey LightMapToggle = KeyboardKey.F7;
     public const KeyboardKey FullscreenToggle = KeyboardKey.F11;
 }

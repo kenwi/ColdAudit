@@ -15,4 +15,15 @@ public static class LevelCatalog
 
     public static string JsonPath(string levelId) =>
         Path.Combine(ContentPaths.Levels, levelId, $"{levelId}.json");
+
+    /// <summary>
+    /// Baked static lighting for the level, written by <c>tools/bake_lightmaps.py</c>.
+    /// One atlas per level: the tool packs every mesh in the sector into a single UV set.
+    /// </summary>
+    public static string LightMapImagePath(string levelId) =>
+        Path.Combine(ContentPaths.Levels, levelId, $"{levelId}_lightmap.png");
+
+    /// <summary>Sidecar written next to the atlas; carries <c>encode_scale</c>.</summary>
+    public static string LightMapMetaPath(string levelId) =>
+        Path.Combine(ContentPaths.Levels, levelId, $"{levelId}_lightmap.json");
 }

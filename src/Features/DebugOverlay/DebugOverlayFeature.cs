@@ -95,6 +95,11 @@ public sealed class DebugOverlayFeature : FeatureBase
             : "OFF";
         Raylib.DrawText($"lighting: {lighting}  (F4)", 12, y, 14, Color.Lime);
         y += 18;
+        var lightMap = world.LightMap is { IsLoaded: true } baked
+            ? $"{baked.Resolution}x{baked.Resolution} {(baked.Enabled ? "ON" : "OFF")}"
+            : "OFF";
+        Raylib.DrawText($"lightmap: {lightMap}  (F7)", 12, y, 14, Color.Lime);
+        y += 18;
         var mask = world.LightVolumeMaskEnabled ? "ON" : "OFF";
         Raylib.DrawText($"light occlusion: {mask}  (F5)", 12, y, 14, Color.Lime);
         y += 18;

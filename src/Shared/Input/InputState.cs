@@ -17,6 +17,7 @@ public sealed class InputState
     public bool ToggleLightingPressed { get; private set; }
     public bool ToggleLightVolumesPressed { get; private set; }
     public bool ToggleShadowsPressed { get; private set; }
+    public bool ToggleLightMapPressed { get; private set; }
     public bool ToggleFullscreenPressed { get; private set; }
 
     public void Sample()
@@ -47,6 +48,7 @@ public sealed class InputState
         ToggleLightingPressed = Raylib.IsKeyPressed(InputMap.LightingToggle);
         ToggleLightVolumesPressed = Raylib.IsKeyPressed(InputMap.LightVolumeToggle);
         ToggleShadowsPressed = Raylib.IsKeyPressed(InputMap.ShadowsToggle);
+        ToggleLightMapPressed = Raylib.IsKeyPressed(InputMap.LightMapToggle);
         ToggleFullscreenPressed = Raylib.IsKeyPressed(InputMap.FullscreenToggle);
     }
 }
