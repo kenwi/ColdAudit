@@ -1,9 +1,20 @@
 """Denoise the lightmap atlas with OIDN, offline.
 
 The bake leaves per-texel path-tracing noise, which is invisible in Blender but obvious
-in game because the atlas is magnified over big surfaces.  OIDN works on the atlas as an
-image: the background is filled first (nearest texel) so the black gaps do not bleed into
-island edges, then the result is re-encoded with the sidecar's encode_scale.
+in game because the atlas is magnified over big surfaces. Shadows are the hard case:
+irradiance there is 50-100x below the bright floors, so a plain HDR denoise spends its
+capacity on the highlights and leaves the dark band as blotches (measured: ~8% of
+texels below L=0.02 are <0.5x their local median, against <0.5% in the mid-tones).
+
+Pipeline:
+  1. Decode the sRGB PNG with the sidecar encode_scale.
+  2. Fill exact-black pinholes inside lit islands (OIDN treats them as detail).
+  3. Nearest-fill the atlas background so island edges do not smear.
+  4. Compress with asinh so shadows and highlights share a similar dynamic range,
+     then run OIDN's ``RTLightmap`` filter (not the default beauty ``RT``).
+  5. Expand back, restore the background, fill any pinholes OIDN re-zeroed, and
+     lightly median-filter only the dark band so residual shadow blotches flatten
+     without touching the lit floors.
 """
 import json
 import subprocess
@@ -17,6 +28,14 @@ from scipy import ndimage
 
 HERE = Path(__file__).resolve().parent
 DEFAULT = HERE.parent / "content/levels/office/office_lightmap.png"
+
+# asinh knee: lin=1 maps near the middle of the compressed range. Office p99 sits
+# around 10-15 irradiance/pi; this keeps the bright panels from dominating OIDN.
+COMPRESS_SCALE = 4.0
+
+# After OIDN, soften only texels dimmer than this (linear irradiance/pi).
+SHADOW_SMOOTH_Luma = 0.12
+SHADOW_SMOOTH_SIZE = 5
 
 
 def s2l(c):
@@ -47,18 +66,29 @@ def highpass(lin):
     """Median absolute difference from a 3x3 median, on covered texels."""
     lum = lin.mean(axis=2)
     covered = lum > 0
+    if not covered.any():
+        return 0.0, 0.0
     res = np.abs(lum - ndimage.median_filter(lum, size=3))
     return float(np.median(res[covered])), float(np.percentile(res[covered], 95))
 
 
-def fill_pinholes(lin, max_px=8, window=5):
+def shadow_blotch(lin, lo=0.0, hi=0.05):
+    """Fraction of dark-band texels below half their 9x9 median."""
+    lum = lin.mean(axis=2)
+    band = (lum > lo) & (lum < hi)
+    if not band.any():
+        return 0.0
+    med = ndimage.median_filter(lum, size=9)
+    return float((lum[band] < 0.5 * med[band]).mean())
+
+
+def fill_pinholes(lin, max_px=32, window=5):
     """Replace small all-black islands inside lit areas with their neighbours.
 
-    The bake leaves isolated zero texels (one texel, occasionally two) inside lit islands.
-    OIDN keeps them: to an edge-preserving denoiser a lone black texel is detail, not
-    noise.  In game each one is magnified into a soft black blob, which is far more
-    visible than the noise the denoiser removed.  Only components up to ``max_px`` are
-    touched, so genuine unlit regions (large black areas) are left alone.
+    The bake leaves isolated zero texels inside lit islands - and in shadows,
+    whole clusters of them. OIDN keeps them: to an edge-preserving denoiser a
+    black texel is detail. Only components up to ``max_px`` are touched, so
+    genuine unlit gutters (large black areas) are left alone.
     """
     black = lin.max(axis=2) == 0
     lab, n = ndimage.label(black)
@@ -81,6 +111,31 @@ def fill_pinholes(lin, max_px=8, window=5):
     return out, int(small.sum())
 
 
+def compress(lin):
+    return np.arcsinh(np.maximum(lin, 0.0) * COMPRESS_SCALE)
+
+
+def expand(comp):
+    return np.sinh(np.maximum(comp, 0.0)) / COMPRESS_SCALE
+
+
+def smooth_shadows(lin, valid):
+    """Median-filter only the dark band; leave lit surfaces alone."""
+    lum = lin.mean(axis=2)
+    shadow = valid & (lum > 0) & (lum < SHADOW_SMOOTH_Luma)
+    if not shadow.any():
+        return lin, 0
+    # Filter a filled image so island edges do not pull toward black.
+    _, (iy, ix) = ndimage.distance_transform_edt(~valid, return_indices=True)
+    filled = lin[iy, ix]
+    blurred = np.empty_like(filled)
+    for c in range(3):
+        blurred[:, :, c] = ndimage.median_filter(filled[:, :, c], size=SHADOW_SMOOTH_SIZE)
+    out = lin.copy()
+    out[shadow] = blurred[shadow]
+    return out, int(shadow.sum())
+
+
 def main(src=DEFAULT, dst=None, stats_only=False):
     src = Path(src)
     dst = Path(dst) if dst else src.with_name(src.stem + "_denoised" + src.suffix)
@@ -92,27 +147,35 @@ def main(src=DEFAULT, dst=None, stats_only=False):
     valid = lin.max(axis=2) > 0
     print(f"{src.name}: {raw.shape[1]}x{raw.shape[0]} covered {valid.mean()*100:.1f}% "
           f"pinholes filled {holes} highpass {highpass(lin)[0]:.5f} "
-          f"(p95 {highpass(lin)[1]:.5f})")
+          f"(p95 {highpass(lin)[1]:.5f}) shadow-blotch[0,0.05) {shadow_blotch(lin)*100:.2f}%")
+
+    if stats_only:
+        return
 
     # nearest valid texel fills the background so OIDN cannot see a hard black edge
     _, (iy, ix) = ndimage.distance_transform_edt(~valid, return_indices=True)
     filled = lin[iy, ix]
+    compressed = compress(filled)
 
     with tempfile.TemporaryDirectory() as td:
         a, b = Path(td) / "in.pfm", Path(td) / "out.pfm"
-        write_pfm(a, filled)
-        cmd = ["oidnDenoise", "--hdr", str(a), "-o", str(b)]
+        write_pfm(a, compressed.astype(np.float32))
+        # RTLightmap is trained for bake atlases; RT is a beauty-pass filter and
+        # under-denoises the low end of an HDR lightmap.
+        cmd = ["oidnDenoise", "-f", "RTLightmap", "--hdr", str(a), "-o", str(b)]
         print(" ".join(cmd))
         subprocess.run(cmd, check=True)
-        den = np.array(read_pfm(b), copy=True)
+        den = expand(np.array(read_pfm(b), copy=True))
 
     den[~valid] = 0.0
     den = np.maximum(den, 0.0)
-    # OIDN can round a few texels back down to zero; the atlas must not carry pinholes.
     den, holes2 = fill_pinholes(den)
     if holes2:
         print(f"post-denoise pinholes filled {holes2}")
-    print(f"after denoise: highpass {highpass(den)[0]:.5f} (p95 {highpass(den)[1]:.5f})")
+    den, n_shadow = smooth_shadows(den, valid)
+    print(f"shadow-smooth {n_shadow} texels (L < {SHADOW_SMOOTH_Luma})")
+    print(f"after denoise: highpass {highpass(den)[0]:.5f} (p95 {highpass(den)[1]:.5f}) "
+          f"shadow-blotch[0,0.05) {shadow_blotch(den)*100:.2f}%")
 
     enc = l2s(np.clip(den * scale, 0.0, 1.0))
     Image.fromarray(np.round(enc * 255).astype(np.uint8)).save(dst)
@@ -120,4 +183,5 @@ def main(src=DEFAULT, dst=None, stats_only=False):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    args = [a for a in sys.argv[1:] if a != "--stats-only"]
+    main(*args, stats_only="--stats-only" in sys.argv)
